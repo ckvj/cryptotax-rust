@@ -1,33 +1,18 @@
 use ini::Ini;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Config {
-<<<<<<< Updated upstream
-    accouting_type: String,
-    filepath: String,
-    csv_columns: HashMap<String,String>,
-    buy_txn_types: Vec<String>,
-    sell_txn_types: Vec<String>,
-=======
     pub accouting_type: String,
     pub filepath: String,
     pub csv_columns: HashMap<String,String>,
     pub buy_txn_types: Vec<String>,
     pub sell_txn_types: Vec<String>,
->>>>>>> Stashed changes
 }
 
 pub fn build_config (config_filepath: &str) -> Config {
     
-    // Initialize empty struct which will be overwritten
-    let mut config = Config {
-        accouting_type: "".to_string(),
-        filepath: "".to_string(),
-        csv_columns: HashMap::new(),
-        buy_txn_types: Vec::new(),
-        sell_txn_types: Vec::new(),
-    };
+    let mut config = Config::default();
 
     let i = Ini::load_from_file(config_filepath).expect("Can't find file");
         
