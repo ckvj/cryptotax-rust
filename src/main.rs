@@ -6,9 +6,8 @@ mod import_trades;
 
 fn main() {
 
-    let args: Vec<String> = env::args().collect();
     
-    let config_filepath: String = String::from(&args[1]);
+    let config_filepath: String = collect_config_filepath().unwrap();
 
     let config = config::build_config(&config_filepath);
 

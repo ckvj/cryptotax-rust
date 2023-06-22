@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use csv::{ReaderBuilder, StringRecord};
-use std::{collections::HashMap};
 use rust_decimal::Decimal;
+use std::collections::HashMap;
 
 use crate::config::Config;
 
@@ -21,12 +21,12 @@ pub struct Trade {
     quote_asset: String,
     quote_asset_amount: Decimal,
     remaining: Decimal,
-    unix_time: i64
+    unix_time: i64,
 }
 
 impl Trade {
-    pub fn new (
-        time_string: String, 
+    pub fn new(
+        time_string: String,
         txn_type_str: String,
         base_asset: String,
         base_asset_amount: Decimal,
@@ -34,24 +34,23 @@ impl Trade {
         quote_asset_amount: Decimal,
         config: &Config,
     ) -> Self {
-        
         // DateTime
         let remaining: Decimal = base_asset_amount;
-        let trade_time = NaiveDateTime::parse_from_str(&time_string,"%Y-%m-%dT%H:%M:%S%.3fZ").unwrap();
+        let trade_time =
+            NaiveDateTime::parse_from_str(&time_string, "%Y-%m-%dT%H:%M:%S%.3fZ").unwrap();
         let unix_time: i64 = NaiveDateTime::timestamp(&trade_time).try_into().unwrap();
 
         // Txn Type
         let txn_type: TxnType;
         if contains_in_vector(&txn_type_str, &config.buy_txn_types) {
             txn_type = TxnType::Buy;
-       } else if contains_in_vector(&txn_type_str, &config.sell_txn_types) {
+        } else if contains_in_vector(&txn_type_str, &config.sell_txn_types) {
             txn_type = TxnType::Sale;
-       } else {
+        } else {
             txn_type = TxnType::Other;
-       }
-       
+        }
 
-       // Return
+        // Return
         Self {
             trade_time,
             txn_type,
@@ -65,7 +64,6 @@ impl Trade {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Asset {
     name: String,
@@ -73,7 +71,6 @@ pub struct Asset {
 }
 
 pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
-
     let mut rdr = ReaderBuilder::new()
         .has_headers(true)
         .from_path(&config.filepath)
@@ -87,36 +84,51 @@ pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
 
     let mut sorted_trades: HashMap<String, Asset> = HashMap::new();
 
+    // Process Rows
     for record in rdr.records() {
         let record = record.unwrap();
 
         let timestamp = String::from(&record[*header_map.get("timestamp").unwrap()]);
         let txn_type = String::from(&record[*header_map.get("txn_type").unwrap()]);
         let base_asset = String::from(&record[*header_map.get("base_asset").unwrap()]);
-        let base_asset_amount = Decimal::try_from(&record[*header_map.get("base_asset_amount").unwrap()]).unwrap();
+        let base_asset_amount =
+            Decimal::try_from(&record[*header_map.get("base_asset_amount").unwrap()]).unwrap();
         let quote_asset = String::from(&record[*header_map.get("quote_asset").unwrap()]);
-        let quote_asset_amount = Decimal::try_from(&record[*header_map.get("quote_asset_amount").unwrap()]).unwrap();
+        let quote_asset_amount =
+            Decimal::try_from(&record[*header_map.get("quote_asset_amount").unwrap()]).unwrap();
 
-        let trade = Trade::new(timestamp, txn_type, base_asset.to_owned() ,base_asset_amount,quote_asset, quote_asset_amount, config);
+        let trade = Trade::new(
+            timestamp,
+            txn_type,
+            base_asset.to_owned(),
+            base_asset_amount,
+            quote_asset,
+            quote_asset_amount,
+            config,
+        );
 
         if sorted_trades.contains_key(&base_asset) {
-            sorted_trades.entry(base_asset).and_modify(|asset| asset.trades.push(trade.to_owned()));
+            sorted_trades
+                .entry(base_asset)
+                .and_modify(|asset| asset.trades.push(trade.to_owned()));
         } else {
-            sorted_trades.insert(base_asset.to_owned(), Asset {name: base_asset.to_owned(), trades: vec![trade]});
+            sorted_trades.insert(
+                base_asset.to_owned(),
+                Asset {
+                    name: base_asset.to_owned(),
+                    trades: vec![trade],
+                },
+            );
         }
     }
-
     sorted_trades
-
 }
 
-
-fn update_headers(headers: &StringRecord, column_map: &HashMap<String,String>) -> StringRecord {
-
+fn update_headers(headers: &StringRecord, column_map: &HashMap<String, String>) -> StringRecord {
     let mut updated_headers: Vec<String> = Vec::new();
-    
+
     for header in headers.iter() {
-        if let Some(new_header) =  column_map.get(header) {
+        if let Some(new_header) = column_map.get(header) {
             updated_headers.push(String::from(new_header))
         } else {
             updated_headers.push(String::from(header));
@@ -126,18 +138,18 @@ fn update_headers(headers: &StringRecord, column_map: &HashMap<String,String>) -
 }
 
 fn build_header_map(headers: &StringRecord) -> HashMap<&str, usize> {
-
     let mut header_map = HashMap::new();
-    
-    for (i,v) in headers.iter().enumerate() { 
+
+    for (i, v) in headers.iter().enumerate() {
         match v {
-            "timestamp" | "txn_type" | "base_asset" | "base_asset_amount" | "quote_asset" | "quote_asset_amount" => {
-                header_map.insert(v,i);
-            },
+            "timestamp" | "txn_type" | "base_asset" | "base_asset_amount" | "quote_asset"
+            | "quote_asset_amount" => {
+                header_map.insert(v, i);
+            }
             _ => (),
         }
     }
-    header_map.clone()
+    header_map
 }
 
 fn contains_in_vector(string: &str, string_vector: &Vec<String>) -> bool {
@@ -146,5 +158,5 @@ fn contains_in_vector(string: &str, string_vector: &Vec<String>) -> bool {
             return true;
         }
     }
-    return false;
+    false
 }

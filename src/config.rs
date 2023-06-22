@@ -35,7 +35,7 @@ pub fn build_config (config_filepath: &str) -> Config {
             Some("sell_txn_types") => {
                 config.sell_txn_types = get_vector_values(&i, "sell_txn_types");
             },
-            None => println!("Returned None Type"),
+            None => (),
             _ => println!("No match for {:?}", section),
         }
     }
