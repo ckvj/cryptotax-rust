@@ -3,11 +3,19 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Config {
+<<<<<<< Updated upstream
     accouting_type: String,
     filepath: String,
     csv_columns: HashMap<String,String>,
     buy_txn_types: Vec<String>,
     sell_txn_types: Vec<String>,
+=======
+    pub accouting_type: String,
+    pub filepath: String,
+    pub csv_columns: HashMap<String,String>,
+    pub buy_txn_types: Vec<String>,
+    pub sell_txn_types: Vec<String>,
+>>>>>>> Stashed changes
 }
 
 pub fn build_config (config_filepath: &str) -> Config {
@@ -32,7 +40,7 @@ pub fn build_config (config_filepath: &str) -> Config {
                 config.filepath = format!("{}{}", &i["file_info"]["dir"], &i["file_info"]["filename"]);
             },
             Some("csv_columns") => {
-                config.csv_columns = get_map(&i, "csv_columns");
+                config.csv_columns = get_map_swap(&i, "csv_columns");
             },
             Some("buy_txn_types") => {
                 config.buy_txn_types = get_vector_values(&i, "buy_txn_types");
@@ -59,12 +67,11 @@ fn get_vector_values(ini: &Ini, section: &str) -> Vec<String> {
     values
 }
 
-fn get_map(ini: &Ini, section: &str) -> HashMap<String, String> {
+fn get_map_swap(ini: &Ini, section: &str) -> HashMap<String, String> {
     ini
         .section(Some(section))
         .unwrap()
         .iter()
-        .map(|(key, value)| (String::from(key), String::from(value)))
+        .map(|(key, value)| (String::from(value), String::from(key)))
         .collect()
 }
-
