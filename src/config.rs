@@ -1,3 +1,5 @@
+// TODO!: Figure how to ensure all fields are captured & ingested properly
+
 use ini::Ini;
 use std::collections::HashMap;
 
@@ -15,7 +17,7 @@ pub fn build_config (config_filepath: &str) -> Config {
     let mut config = Config::default();
 
     let i = Ini::load_from_file(config_filepath).expect("Can't find file");
-        
+    
     for section in i.sections() {
         match section {
             Some("accounting_type") => {
@@ -33,6 +35,7 @@ pub fn build_config (config_filepath: &str) -> Config {
             Some("sell_txn_types") => {
                 config.sell_txn_types = get_vector_values(&i, "sell_txn_types");
             },
+            None => println!("Returned None Type"),
             _ => println!("No match for {:?}", section),
         }
     }
