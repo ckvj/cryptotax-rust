@@ -3,9 +3,19 @@
 use ini::Ini;
 use std::collections::HashMap;
 
+
+#[derive(Debug, Default)]
+pub enum AccountingType {
+    #[default]
+    Lifo,
+    Fifo,
+    Hifo,
+}
+
+
 #[derive(Debug, Default)]
 pub struct Config {
-    pub accouting_type: String,
+    pub accouting_type: AccountingType,
     pub filepath: String,
     pub csv_columns: HashMap<String,String>,
     pub buy_txn_types: Vec<String>,
@@ -21,7 +31,13 @@ pub fn build_config (config_filepath: &str) -> Config {
     for section in i.sections() {
         match section {
             Some("accounting_type") => {
-                config.accouting_type = i["accounting_type"]["accounting_type"].to_string();
+                let accounting_str = &i["accounting_type"]["accounting_type"];
+                config.accouting_type = match accounting_str {
+                    "LIFO" | "Lifo" | "lifo" => AccountingType::Lifo,
+                    "FIFO" | "Fifo" | "fifo" => AccountingType::Fifo,
+                    "HIFO" | "Hifo" | "hifo" => AccountingType::Hifo,
+                    _ => panic!("CANNOT MATCH ACCOUNTING TYPE")
+                }
             },
             Some("file_info") => {
                 config.filepath = format!("{}{}", &i["file_info"]["dir"], &i["file_info"]["filename"]);
