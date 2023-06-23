@@ -1,11 +1,11 @@
 use chrono::NaiveDateTime;
 use csv::{ReaderBuilder, StringRecord};
-use rust_decimal::Decimal;
+use rust_decimal::{Decimal, prelude::ToPrimitive};
 use std::collections::HashMap;
 
 use crate::config::Config;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TxnType {
     Buy,
     Sale,
@@ -14,14 +14,15 @@ pub enum TxnType {
 
 #[derive(Debug, Clone)]
 pub struct Trade {
-    trade_time: NaiveDateTime,
-    txn_type: TxnType,
-    base_asset: String,
-    base_asset_amount: Decimal,
-    quote_asset: String,
-    quote_asset_amount: Decimal,
-    remaining: Decimal,
-    unix_time: i64,
+    pub trade_time: NaiveDateTime,
+    pub txn_type: TxnType,
+    pub base_asset: String,
+    pub base_asset_amount: Decimal,
+    pub quote_asset: String,
+    pub quote_asset_amount: Decimal,
+    pub remaining: Decimal,
+    pub unix_time: i64,
+    pub price: f32,
 }
 
 impl Trade {
@@ -50,6 +51,11 @@ impl Trade {
             txn_type = TxnType::Other;
         }
 
+        //Price
+        let price = quote_asset_amount.checked_div(base_asset_amount).unwrap().to_f32().unwrap();
+        
+
+
         // Return
         Self {
             trade_time,
@@ -60,14 +66,15 @@ impl Trade {
             quote_asset_amount,
             remaining,
             unix_time,
+            price,
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Asset {
-    name: String,
-    trades: Vec<Trade>,
+    pub name: String,
+    pub trades: Vec<Trade>,
 }
 
 pub fn import_trades(config: &Config) -> HashMap<String, Asset> {

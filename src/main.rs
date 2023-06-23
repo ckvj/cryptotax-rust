@@ -3,6 +3,7 @@ use std::{env, error::Error};
 
 mod config;
 mod import_trades;
+mod process_trades;
 
 fn main() {
 
@@ -12,7 +13,9 @@ fn main() {
     let config = config::build_config(&config_filepath);
 
     let trades = import_trades::import_trades(&config);
-    println!("{:?}", &trades["BTC"])
+
+    process_trades::get_sale_events(trades.clone(), &config);
+
 
 }
 
