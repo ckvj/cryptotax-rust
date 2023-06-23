@@ -7,9 +7,9 @@ use std::collections::HashMap;
 #[derive(Debug, Default)]
 pub enum AccountingType {
     #[default]
-    Lifo,
-    Fifo,
-    Hifo,
+    LIFO,
+    FIFO,
+    HIFO,
 }
 
 
@@ -32,12 +32,7 @@ pub fn build_config (config_filepath: &str) -> Config {
         match section {
             Some("accounting_type") => {
                 let accounting_str = &i["accounting_type"]["accounting_type"];
-                config.accouting_type = match accounting_str {
-                    "LIFO" | "Lifo" | "lifo" => AccountingType::Lifo,
-                    "FIFO" | "Fifo" | "fifo" => AccountingType::Fifo,
-                    "HIFO" | "Hifo" | "hifo" => AccountingType::Hifo,
-                    _ => panic!("CANNOT MATCH ACCOUNTING TYPE")
-                }
+                config.accouting_type = match_accounting_type(accounting_str)
             },
             Some("file_info") => {
                 config.filepath = format!("{}{}", &i["file_info"]["dir"], &i["file_info"]["filename"]);
@@ -78,4 +73,15 @@ fn get_map_swap(ini: &Ini, section: &str) -> HashMap<String, String> {
         .iter()
         .map(|(key, value)| (String::from(value), String::from(key)))
         .collect()
+}
+
+fn match_accounting_type(accounting_type: &str) -> AccountingType {
+
+    match accounting_type {
+        "LIFO" | "Lifo" | "lifo" => AccountingType::LIFO,
+        "FIFO" | "Fifo" | "fifo" => AccountingType::FIFO,
+        "HIFO" | "Hifo" | "hifo" => AccountingType::HIFO,
+        _ => panic!("CANNOT MATCH ACCOUNTING TYPE")
+    }
+
 }
