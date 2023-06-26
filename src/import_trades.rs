@@ -28,7 +28,7 @@ pub struct Trade {
 impl Trade {
     pub fn new(
         time_string: String,
-        txn_type_str: String,
+        txn_type_string: String,
         base_asset: String,
         base_asset_amount: Decimal,
         quote_asset: String,
@@ -39,22 +39,12 @@ impl Trade {
         let remaining: Decimal = base_asset_amount;
         let trade_time =
             NaiveDateTime::parse_from_str(&time_string, "%Y-%m-%dT%H:%M:%S%.3fZ").unwrap();
-        let unix_time: i64 = NaiveDateTime::timestamp(&trade_time).try_into().unwrap();
+        let unix_time: i64 = NaiveDateTime::timestamp(&trade_time);
 
-        // Txn Type
-        let txn_type: TxnType;
-        if contains_in_vector(&txn_type_str, &config.buy_txn_types) {
-            txn_type = TxnType::Buy;
-        } else if contains_in_vector(&txn_type_str, &config.sell_txn_types) {
-            txn_type = TxnType::Sale;
-        } else {
-            txn_type = TxnType::Other;
-        }
+        let txn_type = Self::return_txn_type(&txn_type_string, &config.buy_txn_types, &config.sell_txn_types);
 
-        //Price
+        // Price
         let price = quote_asset_amount.checked_div(base_asset_amount).unwrap().to_f32().unwrap();
-        
-
 
         // Return
         Self {
@@ -69,6 +59,17 @@ impl Trade {
             price,
         }
     }
+
+/// Returns txn_type for provided txn_type string and available classification vectors
+    pub fn return_txn_type(match_string: &str, buy_vector: &Vec<String>, sell_vector: &Vec<String>) -> TxnType {
+        if contains_in_vector(match_string, buy_vector) {
+            TxnType::Buy
+        } else if contains_in_vector(match_string, sell_vector) {
+            TxnType::Sale
+        } else {
+            TxnType::Other
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -81,12 +82,12 @@ pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
     let mut rdr = ReaderBuilder::new()
         .has_headers(true)
         .from_path(&config.filepath)
-        .expect("error opening file");
+        .expect("ERROR opening file");
 
     // Update Headers
-    let headers = rdr.headers().unwrap();
-    let updated_headers = update_headers(headers, &config.csv_columns);
-    let header_map = build_header_map(&updated_headers);
+    let headers: &StringRecord = rdr.headers().unwrap();
+    let updated_headers = replace_header_names(headers, &config.csv_columns);
+    let header_indices = build_header_indicies_map(&updated_headers);
     rdr.set_headers(updated_headers.clone());
 
     let mut sorted_trades: HashMap<String, Asset> = HashMap::new();
@@ -95,34 +96,36 @@ pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
     for record in rdr.records() {
         let record = record.unwrap();
 
-        let timestamp = String::from(&record[*header_map.get("timestamp").unwrap()]);
-        let txn_type = String::from(&record[*header_map.get("txn_type").unwrap()]);
-        let base_asset = String::from(&record[*header_map.get("base_asset").unwrap()]);
+        let time_string = String::from(&record[*header_indices.get("timestamp").unwrap()]);
+        let txn_type_string = String::from(&record[*header_indices.get("txn_type").unwrap()]);
+        let base_asset = String::from(&record[*header_indices.get("base_asset").unwrap()]);
         let base_asset_amount =
-            Decimal::try_from(&record[*header_map.get("base_asset_amount").unwrap()]).unwrap();
-        let quote_asset = String::from(&record[*header_map.get("quote_asset").unwrap()]);
+            Decimal::try_from(&record[*header_indices.get("base_asset_amount").unwrap()]).unwrap();
+        let quote_asset = String::from(&record[*header_indices.get("quote_asset").unwrap()]);
         let quote_asset_amount =
-            Decimal::try_from(&record[*header_map.get("quote_asset_amount").unwrap()]).unwrap();
+            Decimal::try_from(&record[*header_indices.get("quote_asset_amount").unwrap()]).unwrap();
+
+        let asset_name = base_asset.to_owned();
 
         let trade = Trade::new(
-            timestamp,
-            txn_type,
-            base_asset.to_owned(),
+            time_string,
+            txn_type_string,
+            base_asset,
             base_asset_amount,
             quote_asset,
             quote_asset_amount,
             config,
         );
 
-        if sorted_trades.contains_key(&base_asset) {
+        if sorted_trades.contains_key(&asset_name) {
             sorted_trades
-                .entry(base_asset)
+                .entry(asset_name)
                 .and_modify(|asset| asset.trades.push(trade.to_owned()));
         } else {
             sorted_trades.insert(
-                base_asset.to_owned(),
+                asset_name.to_owned(),
                 Asset {
-                    name: base_asset.to_owned(),
+                    name: asset_name.to_owned(),
                     trades: vec![trade],
                 },
             );
@@ -131,7 +134,8 @@ pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
     sorted_trades
 }
 
-fn update_headers(headers: &StringRecord, column_map: &HashMap<String, String>) -> StringRecord {
+/// Updates the headers in a `StringRecord` with the corresponding values from a HashMap, ignore others
+fn replace_header_names(headers: &StringRecord, column_map: &HashMap<String, String>) -> StringRecord {
     let mut updated_headers: Vec<String> = Vec::new();
 
     for header in headers.iter() {
@@ -143,8 +147,8 @@ fn update_headers(headers: &StringRecord, column_map: &HashMap<String, String>) 
     }
     StringRecord::from(updated_headers)
 }
-
-fn build_header_map(headers: &StringRecord) -> HashMap<&str, usize> {
+/// Return index of selected header names
+fn build_header_indicies_map(headers: &StringRecord) -> HashMap<&str, usize> {
     let mut header_map = HashMap::new();
 
     for (i, v) in headers.iter().enumerate() {
@@ -159,6 +163,7 @@ fn build_header_map(headers: &StringRecord) -> HashMap<&str, usize> {
     header_map
 }
 
+/// Returns bool for string contained in any string in string_vector
 fn contains_in_vector(string: &str, string_vector: &Vec<String>) -> bool {
     for s in string_vector {
         if string.contains(s) {

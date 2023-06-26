@@ -1,4 +1,4 @@
-// TODO!: Figure how to ensure all fields are captured & ingested properly
+/// Imports Section <> Value names from a INI file
 
 use ini::Ini;
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ pub enum AccountingType {
 
 #[derive(Debug, Default)]
 pub struct Config {
-    pub accouting_type: AccountingType,
+    pub accounting_type: AccountingType,
     pub filepath: String,
     pub csv_columns: HashMap<String,String>,
     pub buy_txn_types: Vec<String>,
@@ -26,55 +26,60 @@ pub fn build_config (config_filepath: &str) -> Config {
     
     let mut config = Config::default();
 
-    let i = Ini::load_from_file(config_filepath).expect("Can't find file");
+    let i: Ini = Ini::load_from_file(config_filepath).expect("ERROR: Can't find file");
     
-    for section in i.sections() {
+    for (ind, section) in i.sections().enumerate() {
         match section {
             Some("accounting_type") => {
                 let accounting_str = &i["accounting_type"]["accounting_type"];
-                config.accouting_type = match_accounting_type(accounting_str)
+                config.accounting_type = match_accounting_type(accounting_str)
             },
             Some("file_info") => {
                 config.filepath = format!("{}{}", &i["file_info"]["dir"], &i["file_info"]["filename"]);
             },
             Some("csv_columns") => {
-                config.csv_columns = get_map_swap(&i, "csv_columns");
+                config.csv_columns = get_map_swap(&i["csv_columns"]);
             },
             Some("buy_txn_types") => {
-                config.buy_txn_types = get_vector_values(&i, "buy_txn_types");
+                config.buy_txn_types = get_vector_values(&i["buy_txn_types"]);
             },
-            Some("sell_txn_types") => {
-                config.sell_txn_types = get_vector_values(&i, "sell_txn_types");
+           Some("sell_txn_types") => {
+               config.sell_txn_types = get_vector_values(&i["sell_txn_types"]);
+           },
+            None => {                
+                if ind == 0 { // Ignore General Section, which is always returned first
+                    dbg!("No outlier fields");
+                    continue
+                } else {
+                    panic!("Attempted import on None type on config file");
+                }
             },
-            None => (),
-            _ => println!("No match for {:?}", section),
+            _ => {
+                println!("Attempt to import unknown section"); dbg!(&section);
+            },
         }
     }
     config
 }
 
 
-
-fn get_vector_values(ini: &Ini, section: &str) -> Vec<String> {
-    let values: Vec<String> = ini
-        .section(Some(section))
-        .unwrap()
+/// Return vector of section values
+fn get_vector_values(section: &ini::Properties) -> Vec<String> {
+    section
         .iter()
         .map(|(_, value)| String::from(value))
-        .collect();
-
-    values
+        .collect()
 }
 
-fn get_map_swap(ini: &Ini, section: &str) -> HashMap<String, String> {
-    ini
-        .section(Some(section))
-        .unwrap()
+/// Return value,key HashMap from an ini file 
+fn get_map_swap(section: &ini::Properties) -> HashMap<String, String> {
+    section
         .iter()
         .map(|(key, value)| (String::from(value), String::from(key)))
         .collect()
 }
 
+/// Matches an accounting type string to an `AccountingType` enum, 
 fn match_accounting_type(accounting_type: &str) -> AccountingType {
 
     match accounting_type {
@@ -83,5 +88,4 @@ fn match_accounting_type(accounting_type: &str) -> AccountingType {
         "HIFO" | "Hifo" | "hifo" => AccountingType::HIFO,
         _ => panic!("CANNOT MATCH ACCOUNTING TYPE")
     }
-
 }
