@@ -1,5 +1,3 @@
-
-
 mod funcs;
 use std::env;
 use cli_table::{print_stdout, WithTitle};
@@ -12,10 +10,10 @@ fn main() {
     let trades = funcs::import_trades::import_trades(&config);
 
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-    print_stdout(sale_events.with_title()).unwrap();
     
-    let summary: f32 = sale_events.iter().map(|sale_event| sale_event.gain_loss).sum();
-    println!("{}", summary)
+    let annual_summary = funcs::process_trades::get_annual_summary(&sale_events);
+    println!("{:?}", annual_summary);
+
 }
 
 fn collect_config_filepath() -> Option<String> {

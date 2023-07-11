@@ -1,5 +1,3 @@
-// Setup
-
 use cryptotax::funcs;
 use cryptotax::funcs::config::AccountingType;
 
