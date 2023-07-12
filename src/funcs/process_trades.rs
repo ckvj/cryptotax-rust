@@ -1,14 +1,15 @@
-use chrono::{NaiveDateTime, Datelike};
+use chrono::{Datelike, NaiveDateTime};
 use cli_table::Table;
+use itertools::Itertools;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::cmp::Reverse;
 use std::{cmp, collections::HashMap};
-use itertools::Itertools;
+
 
 use crate::funcs::config::{AccountingType, Config};
 use crate::funcs::import_trades::{Asset, Trade, TxnType};
 
-
+/// SaleEvent is a Struct that holds individual sale event
 #[derive(Debug, Table)]
 pub struct SaleEvent {
     #[table(title = "Asset Name")]
@@ -61,6 +62,7 @@ impl SaleEvent {
     }
 }
 
+
 pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<SaleEvent> {
     let mut sale_events: Vec<SaleEvent> = vec![];
 
@@ -75,7 +77,6 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 
         for sale in sale_txn_list.iter_mut() {
             for buy in buy_txn_list.iter_mut() {
-                
                 // Proceed for valid buy events
 
                 if buy.unix_time > sale.unix_time || buy.remaining < dust_threshold {
@@ -104,9 +105,8 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 }
 
 
-pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String,HashMap<i32,f32>> {
-    
-    let unique_names: Vec<String> = sales
+pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
+    let unique_assets: Vec<String> = sales
         .iter()
         .map(|sale: &SaleEvent| sale.name.to_owned())
         .collect::<Vec<String>>()
@@ -114,23 +114,48 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String,HashMap<i32,f32
         .unique()
         .collect();
 
-    let empty_hashmap: Vec<HashMap<i32, f32>> = vec![HashMap::new(); unique_names.len()];
- 
-    let mut annual_summary = HashMap::from_iter(unique_names.iter().cloned().zip(empty_hashmap.iter().cloned()));
+    let empty_hashmap: Vec<HashMap<i32, f32>> = vec![HashMap::new(); unique_assets.len()];
+
+    let mut annual_summary = HashMap::from_iter(
+        unique_assets
+            .iter()
+            .cloned()
+            .zip(empty_hashmap.iter().cloned()),
+    );
 
     for sale in sales.iter() {
         if annual_summary[&sale.name].contains_key(&sale.sell_year) {
-            let v = annual_summary.get_mut(&sale.name).unwrap().get_mut(&sale.sell_year).unwrap();
-            *v += sale.gain_loss; 
+            let v = annual_summary
+                .get_mut(&sale.name)
+                .unwrap()
+                .get_mut(&sale.sell_year)
+                .unwrap();
+            *v += sale.gain_loss; // Question: Why do I need to dereference here?
         } else {
-            annual_summary.get_mut(&sale.name).unwrap().insert(sale.sell_year, sale.gain_loss);
+            annual_summary
+                .get_mut(&sale.name)
+                .unwrap()
+                .insert(sale.sell_year, sale.gain_loss);
         }
     }
 
     annual_summary
 }
 
-fn build_buy_list(trades: &[Trade], analysis_type: &AccountingType) -> Vec<Trade> {
+
+
+/// Builds a list of buys from the given list of trades, sorted by the specified accounting type.
+///
+/// # Arguments
+///
+/// * `trades` - The list of trades to build the buy list from.
+/// * `analysis_type` - The accounting type to sort the buy list by.
+///
+/// # Returns
+///
+/// A list of buys, sorted by the specified accounting type.
+///
+pub fn build_buy_list(trades: &[Trade], analysis_type: &AccountingType) -> Vec<Trade> {
     let mut buy_list: Vec<Trade> = trades
         .iter()
         .filter(|trade| trade.txn_type == TxnType::Buy)
@@ -145,13 +170,23 @@ fn build_buy_list(trades: &[Trade], analysis_type: &AccountingType) -> Vec<Trade
     buy_list
 }
 
+
+/// Builds a list of sales from the given list of trades.
+///
+/// # Arguments
+/// 
+/// * `trades` - The list of trades to build the sale list from.
+///
+/// # Returns
+///
+/// A list of sales, sorted by trade time.
 fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
     let mut sale_list: Vec<Trade> = trades
         .iter()
         .filter(|trade| trade.txn_type == TxnType::Sale)
         .cloned()
         .collect();
-    
+
     sale_list.sort_by_key(|k| k.trade_time);
     sale_list
 }

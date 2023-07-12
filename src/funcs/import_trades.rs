@@ -6,6 +6,7 @@ use std::error::Error;
 
 use crate::funcs::config::Config;
 
+/// TxnType is exclusive and classified all trades as Buy, Sale, or Other, where Other can includes non-capital gain events
 #[derive(Debug, Clone, PartialEq)]
 pub enum TxnType {
     Buy,
@@ -28,6 +29,7 @@ impl TxnType {
     }
 }
 
+/// Trade is what's imported from csv files. Some fields read from CSV and others are derived.
 #[derive(Debug, Clone)]
 pub struct Trade {
     pub trade_time: NaiveDateTime,
@@ -98,10 +100,10 @@ pub struct Asset {
 }
 
 pub fn import_trades(config: &Config) -> Result<HashMap<String, Asset>, Box<dyn Error>> {
-    let mut rdr = ReaderBuilder::new()
-        .has_headers(true)
-        .from_path(&config.filepath)
-        .expect("ERROR opening file");
+    let mut rdr = match ReaderBuilder::new().has_headers(true).from_path(&config.filepath) {
+            Ok(rdr) => rdr,
+            Err(_) => return Err("ERROR opening file from provided filepath".into()), // Question: Better way to do this? Would be nice to match different types of errors in Main, but can't seem to match on error messages in a Box
+        };
 
     // Update Headers
     let headers: &StringRecord = rdr.headers()?;
@@ -115,14 +117,12 @@ pub fn import_trades(config: &Config) -> Result<HashMap<String, Asset>, Box<dyn 
     for record in rdr.records() {
         let record = record.unwrap();
 
-        let time_string = String::from(&record[*header_indices.get("timestamp").unwrap()]);
+        let time_string = String::from(&record[*header_indices.get("timestamp").unwrap()]); // Question: tried ".to_string()" here and it didn't work, said it was type &String. Why?
         let txn_type_string = String::from(&record[*header_indices.get("txn_type").unwrap()]);
         let base_asset = String::from(&record[*header_indices.get("base_asset").unwrap()]);
-        let base_asset_amount =
-            Decimal::try_from(&record[*header_indices.get("base_asset_amount").unwrap()]).unwrap();
+        let base_asset_amount = Decimal::try_from(&record[*header_indices.get("base_asset_amount").unwrap()]).unwrap();
         let quote_asset = String::from(&record[*header_indices.get("quote_asset").unwrap()]);
-        let quote_asset_amount =
-            Decimal::try_from(&record[*header_indices.get("quote_asset_amount").unwrap()]).unwrap();
+        let quote_asset_amount = Decimal::try_from(&record[*header_indices.get("quote_asset_amount").unwrap()]).unwrap();
 
         let asset_name = base_asset.to_owned();
 
@@ -134,7 +134,7 @@ pub fn import_trades(config: &Config) -> Result<HashMap<String, Asset>, Box<dyn 
             quote_asset,
             quote_asset_amount,
             config,
-        ).unwrap();
+        )?; // Question: Think the ? is fine here since it should propagate more specific error message from before.
 
         if sorted_trades.contains_key(&asset_name) {
             sorted_trades

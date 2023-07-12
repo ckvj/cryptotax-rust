@@ -3,12 +3,27 @@ use ini::Ini;
 use std::collections::HashMap;
 use std::error::Error;
 
+/// Enum of three different types of analysis types
 #[derive(Debug, Default, Clone)]
 pub enum AccountingType {
-    FIFO,
-    HIFO,
     #[default]
     LIFO,
+    FIFO,
+    HIFO,
+}
+
+impl AccountingType {
+    /// Matches an accounting type string to an `AccountingType` enum
+    fn match_accounting_type(accounting_type: &str) -> Self {
+        
+        // Question: I try to create a copy and match to .lowercase_() so I don't need to write out three versions, but cannot figure out clean solution.
+        match accounting_type {
+            "LIFO" | "Lifo" | "lifo" => Self::LIFO,
+            "FIFO" | "Fifo" | "fifo" => Self::FIFO,
+            "HIFO" | "Hifo" | "hifo" => Self::HIFO,
+            _ => panic!("CANNOT MATCH ACCOUNTING TYPE"), // Question: Panic best here since no easy recovery?
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -25,14 +40,14 @@ pub fn build_config(config_filepath: &str) -> Result<Config, Box<dyn Error>> {
 
     let i = match Ini::load_from_file(config_filepath) {
         Ok(i) => i,
-        Err(_) => return Err("Config file not found".into()),  // Is .into() the right way to solve this?
+        Err(_) => return Err("ERROR: Can't find file".into())
     };
 
     for (ind, section) in i.sections().enumerate() {
         match section {
             Some("accounting_type") => {
                 let accounting_str = &i["accounting_type"]["accounting_type"];
-                config.accounting_type = match_accounting_type(accounting_str)?
+                config.accounting_type = AccountingType::match_accounting_type(accounting_str)
             }
             Some("file_info") => {
                 config.filepath =
@@ -53,7 +68,7 @@ pub fn build_config(config_filepath: &str) -> Result<Config, Box<dyn Error>> {
                     dbg!("No outlier fields");
                     continue;
                 } else {
-                    return Err("Attempted import on None type on config file".into());
+                    panic!("Uncharacterized Error, attempted import on None type on config file");
                 }
             }
             _ => {
@@ -79,14 +94,4 @@ fn get_map_swap(section: &ini::Properties) -> HashMap<String, String> {
         .iter()
         .map(|(key, value)| (String::from(value), String::from(key)))
         .collect()
-}
-
-/// Matches an accounting type string to an `AccountingType` enum,
-fn match_accounting_type(accounting_type: &str) -> Result<AccountingType, Box<dyn Error>> { //Question: How can I make this error type more specific
-    match accounting_type {
-        "LIFO" | "Lifo" | "lifo" => Ok(AccountingType::LIFO),
-        "FIFO" | "Fifo" | "fifo" => Ok(AccountingType::FIFO),
-        "HIFO" | "Hifo" | "hifo" => Ok(AccountingType::HIFO),
-        _ => Err("Cannot match provided accounting type".into()), // Is .into() the right way to solve this?
-    }
 }

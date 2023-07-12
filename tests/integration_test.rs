@@ -4,7 +4,7 @@ use cryptotax::funcs::config::AccountingType;
 #[test]
 fn integration_test() {
 
-    let config_filepath = String::from("test_config.ini");
+    let config_filepath = String::from("tests/test_config.ini");
     let mut config = funcs::config::build_config(&config_filepath).unwrap();
     
     for i in [AccountingType::FIFO, AccountingType::LIFO, AccountingType::HIFO].iter() {
