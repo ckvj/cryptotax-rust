@@ -76,13 +76,15 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
         for sale in sale_txn_list.iter_mut() {
             for buy in buy_txn_list.iter_mut() {
                 
-                // Guard to analyze valid transactions
+                // Proceed for valid buy events
+
                 if buy.unix_time > sale.unix_time || buy.remaining < dust_threshold {
                     continue;
                 }
 
                 let clip_size = cmp::min(buy.remaining, sale.remaining);
-                let event = SaleEvent::new(&buy, &sale, clip_size);
+                let event = SaleEvent::new(buy, sale, clip_size); // Why not &buy & &sell?
+
                 sale_events.push(event);
 
                 buy.remaining -= clip_size;
@@ -102,9 +104,8 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 }
 
 
-
-pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
-
+pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String,HashMap<i32,f32>> {
+    
     let unique_names: Vec<String> = sales
         .iter()
         .map(|sale: &SaleEvent| sale.name.to_owned())
@@ -113,36 +114,28 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f
         .unique()
         .collect();
 
-    let mut annual_summary: HashMap<String, HashMap<i32,f32>> = HashMap::new();
-    
-    // Initialize Hashmap
-    for name in unique_names {
-        let map = HashMap::new();
-        annual_summary.insert(name, map);
-    }
-
+    let empty_hashmap: Vec<HashMap<i32, f32>> = vec![HashMap::new(); unique_names.len()];
+ 
+    let mut annual_summary = HashMap::from_iter(unique_names.iter().cloned().zip(empty_hashmap.iter().cloned()));
 
     for sale in sales.iter() {
         if annual_summary[&sale.name].contains_key(&sale.sell_year) {
-            let v = annual_summary.get_mut(&sale.name).unwrap();
-            let vv = v.get_mut(&sale.sell_year).unwrap();
-            *vv += sale.gain_loss; 
+            let v = annual_summary.get_mut(&sale.name).unwrap().get_mut(&sale.sell_year).unwrap();
+            *v += sale.gain_loss; 
         } else {
-            let val = annual_summary.get_mut(&sale.name).unwrap();
-            val.insert(sale.sell_year, sale.gain_loss);
+            annual_summary.get_mut(&sale.name).unwrap().insert(sale.sell_year, sale.gain_loss);
         }
     }
 
     annual_summary
 }
 
-fn build_buy_list(trades: &Vec<Trade>, analysis_type: &AccountingType) -> Vec<Trade> {
-    let mut buy_list: Vec<Trade> = vec![];
-    for trade in trades.iter() {
-        if trade.txn_type == TxnType::Buy {
-            buy_list.push(trade.clone())
-        }
-    }
+fn build_buy_list(trades: &[Trade], analysis_type: &AccountingType) -> Vec<Trade> {
+    let mut buy_list: Vec<Trade> = trades
+        .iter()
+        .filter(|trade| trade.txn_type == TxnType::Buy)
+        .cloned()
+        .collect();
 
     match analysis_type {
         AccountingType::FIFO => buy_list.sort_by_key(|k| k.trade_time),
@@ -152,13 +145,13 @@ fn build_buy_list(trades: &Vec<Trade>, analysis_type: &AccountingType) -> Vec<Tr
     buy_list
 }
 
-fn build_sale_list(trades: &Vec<Trade>) -> Vec<Trade> {
-    let mut sale_list: Vec<Trade> = vec![];
-    for trade in trades.iter() {
-        if trade.txn_type == TxnType::Sale {
-            sale_list.push(trade.clone())
-        }
-    }
+fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
+    let mut sale_list: Vec<Trade> = trades
+        .iter()
+        .filter(|trade| trade.txn_type == TxnType::Sale)
+        .cloned()
+        .collect();
+    
     sale_list.sort_by_key(|k| k.trade_time);
     sale_list
 }

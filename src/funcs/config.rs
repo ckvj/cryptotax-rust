@@ -1,13 +1,14 @@
 /// Imports Section <> Value names from a INI file
 use ini::Ini;
 use std::collections::HashMap;
+use std::error::Error;
 
 #[derive(Debug, Default, Clone)]
 pub enum AccountingType {
-    #[default]
-    LIFO,
     FIFO,
     HIFO,
+    #[default]
+    LIFO,
 }
 
 #[derive(Debug, Default)]
@@ -19,16 +20,19 @@ pub struct Config {
     pub sell_txn_types: Vec<String>,
 }
 
-pub fn build_config(config_filepath: &str) -> Config {
+pub fn build_config(config_filepath: &str) -> Result<Config, Box<dyn Error>> {
     let mut config = Config::default();
 
-    let i: Ini = Ini::load_from_file(config_filepath).expect("ERROR: Can't find file");
+    let i = match Ini::load_from_file(config_filepath) {
+        Ok(i) => i,
+        Err(_) => return Err("Config file not found".into()),  // Is .into() the right way to solve this?
+    };
 
     for (ind, section) in i.sections().enumerate() {
         match section {
             Some("accounting_type") => {
                 let accounting_str = &i["accounting_type"]["accounting_type"];
-                config.accounting_type = match_accounting_type(accounting_str)
+                config.accounting_type = match_accounting_type(accounting_str)?
             }
             Some("file_info") => {
                 config.filepath =
@@ -49,7 +53,7 @@ pub fn build_config(config_filepath: &str) -> Config {
                     dbg!("No outlier fields");
                     continue;
                 } else {
-                    panic!("Attempted import on None type on config file");
+                    return Err("Attempted import on None type on config file".into());
                 }
             }
             _ => {
@@ -58,7 +62,7 @@ pub fn build_config(config_filepath: &str) -> Config {
             }
         }
     }
-    config
+    Ok(config)
 }
 
 /// Return vector of INI Section values
@@ -78,11 +82,11 @@ fn get_map_swap(section: &ini::Properties) -> HashMap<String, String> {
 }
 
 /// Matches an accounting type string to an `AccountingType` enum,
-fn match_accounting_type(accounting_type: &str) -> AccountingType {
+fn match_accounting_type(accounting_type: &str) -> Result<AccountingType, Box<dyn Error>> { //Question: How can I make this error type more specific
     match accounting_type {
-        "LIFO" | "Lifo" | "lifo" => AccountingType::LIFO,
-        "FIFO" | "Fifo" | "fifo" => AccountingType::FIFO,
-        "HIFO" | "Hifo" | "hifo" => AccountingType::HIFO,
-        _ => panic!("CANNOT MATCH ACCOUNTING TYPE"),
+        "LIFO" | "Lifo" | "lifo" => Ok(AccountingType::LIFO),
+        "FIFO" | "Fifo" | "fifo" => Ok(AccountingType::FIFO),
+        "HIFO" | "Hifo" | "hifo" => Ok(AccountingType::HIFO),
+        _ => Err("Cannot match provided accounting type".into()), // Is .into() the right way to solve this?
     }
 }
