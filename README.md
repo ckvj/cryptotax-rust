@@ -1,2 +1,2 @@
 # cryptotax-rust
-Program that ingests csv of capital gain/loss events and processes them using LIFO/FIFO/HIFO.
+Program that ingests csv of trades and processes them into gain/loss events using LIFO,FIFO or HIFO.
