@@ -7,11 +7,11 @@ use cryptotax::funcs::config::AccountingType;
 fn integration_test() {
 
     let config_filepath = String::from("test_config.ini");
-    let mut config = funcs::config::build_config(&config_filepath);
+    let mut config = funcs::config::build_config(&config_filepath).unwrap();
     
     for i in [AccountingType::FIFO, AccountingType::LIFO, AccountingType::HIFO].iter() {
         config.accounting_type = i.clone();
-        let trades = funcs::import_trades::import_trades(&config);
+        let trades = funcs::import_trades::import_trades(&config).unwrap();
         let sale_events = funcs::process_trades::get_sale_events(trades, &config);
         let gain_loss_summary: f32 = sale_events.iter().map(|sale_event| sale_event.gain_loss).sum();
 

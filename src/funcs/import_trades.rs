@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use csv::{ReaderBuilder, StringRecord};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::collections::HashMap;
+use std::error::Error;
 
 use crate::funcs::config::Config;
 
@@ -13,15 +14,15 @@ pub enum TxnType {
 }
 
 impl TxnType {
-    /// Returns txn_type for provided txn_type string and available classification vectors
+    /// Returns txn_type enum for provided txn_type string and available classification vectors
     pub fn return_txn_type(
         match_string: &String,
         buy_vector: &Vec<String>,
         sell_vector: &Vec<String>,
     ) -> TxnType {
         match match_string {
-            _ if contains_in_vector(match_string, buy_vector) => TxnType::Buy,
-            _ if contains_in_vector(match_string, sell_vector) => TxnType::Sale,
+            _ if contains_in_vector(&match_string, buy_vector) => TxnType::Buy, //Question: Why does analyzer recommend I remove the & in the &match_string?
+            _ if contains_in_vector(&match_string, sell_vector) => TxnType::Sale,
             _ => TxnType::Other,
         }
     }
@@ -49,10 +50,14 @@ impl Trade {
         quote_asset: String,
         quote_asset_amount: Decimal,
         config: &Config,
-    ) -> Self {
-        // DateTime
-        let trade_time =
-            NaiveDateTime::parse_from_str(&time_string, "%Y-%m-%dT%H:%M:%S%.3fZ").unwrap();
+    ) -> Result<Self, Box<dyn Error>> {
+        
+        // DateTime derivations
+        let trade_time = match NaiveDateTime::parse_from_str(&time_string, "%Y-%m-%dT%H:%M:%S%.3fZ"){
+            Ok(trade_time) => trade_time,
+            Err(_) => return Err("Cannot parse date format".into()), // Question: How can I include the specific time_string in error reponse?
+        };
+        
         let unix_time: i64 = NaiveDateTime::timestamp(&trade_time);
 
         // TxnType
@@ -72,7 +77,7 @@ impl Trade {
         let remaining: Decimal = base_asset_amount;
 
         // Return
-        Self {
+        Ok(Self {
             trade_time,
             txn_type,
             base_asset,
@@ -82,7 +87,7 @@ impl Trade {
             remaining,
             unix_time,
             price,
-        }
+        })
     }
 }
 
@@ -92,14 +97,14 @@ pub struct Asset {
     pub trades: Vec<Trade>,
 }
 
-pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
+pub fn import_trades(config: &Config) -> Result<HashMap<String, Asset>, Box<dyn Error>> {
     let mut rdr = ReaderBuilder::new()
         .has_headers(true)
         .from_path(&config.filepath)
         .expect("ERROR opening file");
 
     // Update Headers
-    let headers: &StringRecord = rdr.headers().unwrap();
+    let headers: &StringRecord = rdr.headers()?;
     let updated_headers = replace_header_names(headers, &config.csv_columns);
     rdr.set_headers(updated_headers.to_owned());
     let header_indices = build_header_indicies_map(&updated_headers);
@@ -129,7 +134,7 @@ pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
             quote_asset,
             quote_asset_amount,
             config,
-        );
+        ).unwrap();
 
         if sorted_trades.contains_key(&asset_name) {
             sorted_trades
@@ -145,7 +150,7 @@ pub fn import_trades(config: &Config) -> HashMap<String, Asset> {
             );
         }
     }
-    sorted_trades
+    Ok(sorted_trades)
 }
 
 /// Updates the headers in a `StringRecord` with the corresponding values from a HashMap, ignore others
