@@ -77,12 +77,14 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
             for buy in buy_txn_list.iter_mut() {
                 
                 // Proceed for valid buy events
+
                 if buy.unix_time > sale.unix_time || buy.remaining < dust_threshold {
                     continue;
                 }
 
                 let clip_size = cmp::min(buy.remaining, sale.remaining);
                 let event = SaleEvent::new(buy, sale, clip_size); // Why not &buy & &sell?
+
                 sale_events.push(event);
 
                 buy.remaining -= clip_size;
