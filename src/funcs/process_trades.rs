@@ -62,7 +62,16 @@ impl SaleEvent {
     }
 }
 
-
+/// Gets the sale events for an asset.
+///
+/// # Arguments
+///
+/// * `trades` - A hash map of trades, which are asset names & Asset structs containting trades
+/// * `config` - The configuration object from the config ini file.
+///
+/// # Returns
+///
+/// A list of sale events for the asset.
 pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<SaleEvent> {
     let mut sale_events: Vec<SaleEvent> = vec![];
 
@@ -105,6 +114,17 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 }
 
 
+/// Gets the annual summary of sales.
+///
+/// # Arguments
+///
+/// * `sales` - A list of sale events.
+///
+/// # Returns
+///
+/// A hash map where the keys are the asset names and the values are hash maps
+/// where the keys are the sell years and the values are the gain or loss for that
+/// asset in that year.
 pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
     let unique_assets: Vec<String> = sales
         .iter()
