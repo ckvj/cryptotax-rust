@@ -14,14 +14,12 @@ pub enum AccountingType {
 
 impl AccountingType {
     /// Matches an accounting type string to an `AccountingType` enum
-    fn match_accounting_type(accounting_type: &str) -> Self {
-        
-        // Question: I try to create a copy and match to .lowercase_() so I don't need to write out three versions, but cannot figure out clean solution.
-        match accounting_type {
-            "LIFO" | "Lifo" | "lifo" => Self::LIFO,
-            "FIFO" | "Fifo" | "fifo" => Self::FIFO,
-            "HIFO" | "Hifo" | "hifo" => Self::HIFO,
-            _ => panic!("CANNOT MATCH ACCOUNTING TYPE"), // Question: Panic best here since no easy recovery?
+    fn match_accounting_type(accounting_type: &str) -> Option<Self> {
+        match accounting_type.to_uppercase().as_str() {
+            "LIFO" => Some(Self::LIFO),
+            "FIFO" => Some(Self::FIFO),
+            "HIFO" => Some(Self::HIFO),
+            _ => None,
         }
     }
 }
@@ -38,36 +36,33 @@ pub struct Config {
 pub fn build_config(config_filepath: &str) -> Result<Config, Box<dyn Error>> {
     let mut config = Config::default();
 
-    let i = match Ini::load_from_file(config_filepath) {
-        Ok(i) => i,
-        Err(_) => return Err("ERROR: Can't find file".into())
-    };
+    let ini_file = Ini::load_from_file(config_filepath)?;
 
-    for (ind, section) in i.sections().enumerate() {
+    for (index, section) in ini_file.sections().enumerate() {
         match section {
             Some("accounting_type") => {
-                let accounting_str = &i["accounting_type"]["accounting_type"];
-                config.accounting_type = AccountingType::match_accounting_type(accounting_str)
+                let accounting_str = &ini_file[section]["accounting_type"];
+                config.accounting_type = match AccountingType::match_accounting_type(accounting_str)
+                {
+                    Some(a) => a,
+                    None => panic!("Cannot match accounting type")
+                };
             }
             Some("file_info") => {
-                config.filepath =
-                    format!("{}{}", &i["file_info"]["dir"], &i["file_info"]["filename"]);
+                config.filepath = format!("{}{}", &ini_file[section]["dir"], &ini_file[section]["filename"]);
             }
             Some("csv_columns") => {
-                config.csv_columns = get_map_swap(&i["csv_columns"]);
+                config.csv_columns = get_map_and_swap(&ini_file[section]);
             }
             Some("buy_txn_types") => {
-                config.buy_txn_types = get_vector_values(&i["buy_txn_types"]);
+                config.buy_txn_types = get_vector_values(&ini_file[section]);
             }
             Some("sell_txn_types") => {
-                config.sell_txn_types = get_vector_values(&i["sell_txn_types"]);
+                config.sell_txn_types = get_vector_values(&ini_file[section]);
             }
             None => {
-                if ind == 0 {
-                    // Ignore General Section, which is always returned first
-                    dbg!("No outlier fields");
-                    continue;
-                } else {
+                // Ignore General Section, which is always returned first (i=0)
+                if index != 0 {
                     panic!("Uncharacterized Error, attempted import on None type on config file");
                 }
             }
@@ -89,7 +84,7 @@ fn get_vector_values(section: &ini::Properties) -> Vec<String> {
 }
 
 /// Return Hashmap<value,key> for a ini file section
-fn get_map_swap(section: &ini::Properties) -> HashMap<String, String> {
+fn get_map_and_swap(section: &ini::Properties) -> HashMap<String, String> {
     section
         .iter()
         .map(|(key, value)| (String::from(value), String::from(key)))

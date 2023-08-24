@@ -5,10 +5,9 @@ use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::cmp::Reverse;
 use std::{cmp, collections::HashMap};
 
-
 use crate::funcs::config::{AccountingType, Config};
-use crate::funcs::import_trades::{Asset, Trade, TxnType};
-
+use crate::funcs::trade::{Asset, Trade};
+use crate::funcs::txn_type::TxnType;
 /// SaleEvent is a Struct that holds individual sale event
 #[derive(Debug, Table)]
 pub struct SaleEvent {
@@ -113,7 +112,6 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
     sale_events
 }
 
-
 /// Gets the annual summary of sales.
 ///
 /// # Arguments
@@ -162,8 +160,6 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f
     annual_summary
 }
 
-
-
 /// Builds a list of buys from the given list of trades, sorted by the specified accounting type.
 ///
 /// # Arguments
@@ -190,11 +186,10 @@ pub fn build_buy_list(trades: &[Trade], analysis_type: &AccountingType) -> Vec<T
     buy_list
 }
 
-
 /// Builds a list of sales from the given list of trades.
 ///
 /// # Arguments
-/// 
+///
 /// * `trades` - The list of trades to build the sale list from.
 ///
 /// # Returns
