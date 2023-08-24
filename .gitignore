@@ -15,5 +15,5 @@ Cargo.lock
 
 .vscode
 
-CryptoTransactions.csv
+CryptoTxns.csv
 config.ini
