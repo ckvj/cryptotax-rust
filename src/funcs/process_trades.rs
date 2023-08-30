@@ -11,26 +11,16 @@ use crate::funcs::txn_type::TxnType;
 /// SaleEvent is a Struct that holds individual sale event
 #[derive(Debug, Table)]
 pub struct SaleEvent {
-    #[table(title = "Asset Name")]
-    name: String,
-    #[table(title = "Buy Date")]
-    buy_date: NaiveDateTime,
-    #[table(title = "Buy Date (Unix)")]
-    buy_date_unix: i64,
-    #[table(title = "Sale Date")]
-    sale_date: NaiveDateTime,
-    #[table(title = "Sale Date (Unix)")]
-    sale_date_unix: i64,
-    #[table(title = "Purchase Price")]
-    purchase_price: f32,
-    #[table(title = "Sale Price")]
-    sale_price: f32,
-    #[table(title = "Amount")]
-    amount: Decimal,
-    #[table(title = "Gain-Loss")]
-    pub gain_loss: f32,
-    #[table(title = "Sell Year")]
-    pub sell_year: i32,
+    #[table(title = "Asset Name")] name: String,
+    #[table(title = "Buy Date")] buy_date: NaiveDateTime,
+    #[table(title = "Buy Date (Unix)")] buy_date_unix: i64,
+    #[table(title = "Sale Date")] sale_date: NaiveDateTime,
+    #[table(title = "Sale Date (Unix)")] sale_date_unix: i64,
+    #[table(title = "Purchase Price")] purchase_price: f32,
+    #[table(title = "Sale Price")] sale_price: f32,
+    #[table(title = "Amount")] amount: Decimal,
+    #[table(title = "Gain-Loss")] pub gain_loss: f32,
+    #[table(title = "Sell Year")] pub sell_year: i32,
 }
 
 impl SaleEvent {
@@ -112,6 +102,7 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
     sale_events
 }
 
+
 /// Gets the annual summary of sales.
 ///
 /// # Arguments
@@ -124,6 +115,7 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 /// where the keys are the sell years and the values are the gain or loss for that
 /// asset in that year.
 pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
+    
     let unique_assets: Vec<String> = sales
         .iter()
         .map(|sale: &SaleEvent| sale.name.to_owned())

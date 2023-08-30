@@ -1,8 +1,9 @@
 mod funcs;
 use std::env;
+use std::error::Error;
 
 /// Given filepath to config file
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let config_filepath: String = collect_config_filepath().unwrap();
     let config = match funcs::config::build_config(&config_filepath) {
         Ok(config) => config,
@@ -12,11 +13,21 @@ fn main() {
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-    
+
+    cli_table::print_stdout(&sale_events).unwrap();
+    println!("{}", sale_events.len());
+
     let annual_summary = funcs::process_trades::get_annual_summary(&sale_events);
-    println!("{:?}", annual_summary);
+    
+    annual_summary.
+        iter()
+        .for_each(|(k,v)| println!("{:?} {:?}", k,v));
+
+    Ok(())
+    
     
 }
+
 fn collect_config_filepath() -> Option<String> {
     match env::args().nth(1){
         Some(filepath) => Some(filepath),

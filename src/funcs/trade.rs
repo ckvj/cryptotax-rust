@@ -78,24 +78,6 @@ impl Trade {
     }
 }
 
-pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, Box<dyn Error>> {
-    // Common Date Formats
-    let common_formats = [
-        "%Y-%m-%dT%H:%M:%S%.3fZ",
-        "%Y-%m-%dT%H:%M:%SZ",
-        "%Y-%m-%dT%H:%M:%S",
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d",
-    ];
-    
-    for fmt in common_formats.iter() {
-        if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime, fmt) {
-            return Ok(dt);
-        }
-    }
-    Err(format!("Error parsing datetime {}", datetime).into())
-}
-
 
 pub fn process_record_into_trade(record: &StringRecord, header_indices: &HashMap<&str, usize>, config: &Config) -> Result<Trade, Box<dyn Error>> {
 
@@ -122,3 +104,22 @@ pub fn get_value_from_record(field: &str, record: &StringRecord, header_indices:
     let header_index = header_indices.get(field).unwrap_or_else(|| panic!("Error parsing field {} in record {:?}", &field, &record));
     Ok(record.get(*header_index).unwrap().to_string())
 }
+
+pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, Box<dyn Error>> {
+    // Common Date Formats
+    let common_formats = [
+        "%Y-%m-%dT%H:%M:%S%.3fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ];
+    
+    for fmt in common_formats.iter() {
+        if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime, fmt) {
+            return Ok(dt);
+        }
+    }
+    Err(format!("Error parsing datetime {}", datetime).into())
+}
+
