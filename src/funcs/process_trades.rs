@@ -8,8 +8,10 @@ use std::{cmp, collections::HashMap};
 use crate::funcs::config::{AccountingType, Config};
 use crate::funcs::trade::{Asset, Trade};
 use crate::funcs::txn_type::TxnType;
+
+
 /// SaleEvent is a Struct that holds individual sale event
-#[derive(Debug, Table)]
+#[derive(Debug, Table, Clone)]
 pub struct SaleEvent {
     #[table(title = "Asset Name")] name: String,
     #[table(title = "Buy Date")] buy_date: NaiveDateTime,
@@ -50,6 +52,8 @@ impl SaleEvent {
         }
     }
 }
+
+
 
 /// Gets the sale events for an asset.
 ///

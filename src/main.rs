@@ -2,6 +2,8 @@ mod funcs;
 use std::env;
 use std::error::Error;
 
+
+
 /// Given filepath to config file
 fn main() -> Result<(), Box<dyn Error>> {
     let config_filepath: String = collect_config_filepath().unwrap();
@@ -13,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-
+    
     cli_table::print_stdout(&sale_events).unwrap();
     println!("{}", sale_events.len());
 
