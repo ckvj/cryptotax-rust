@@ -7,7 +7,7 @@ fn integration_test() {
     let config_filepath = String::from("tests/test_config.ini");
     let mut config = funcs::config::build_config(&config_filepath).unwrap();
 
-    assert!(matches!(config.accounting_type, AccountingType::FIFO | AccountingType::LIFO | AccountingType::HIFO)); // Question: Why does this not work?
+    assert!(matches!(config.accounting_type, AccountingType::FIFO | AccountingType::LIFO | AccountingType::HIFO));
     
     for i in [AccountingType::FIFO, AccountingType::LIFO, AccountingType::HIFO].iter() {
         config.accounting_type = i.clone();

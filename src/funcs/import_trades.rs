@@ -10,7 +10,9 @@ use crate::funcs::trade::{Asset, Trade, process_record_into_trade};
 pub fn import_trades(config: &Config) -> Result<HashMap<String, Asset>, Box<dyn Error>> {
     
     // Read Config
-    let mut rdr = ReaderBuilder::new().has_headers(true).from_path(&config.filepath)?;
+    let mut rdr = ReaderBuilder::new()
+                                .has_headers(true)
+                                .from_path(&config.filepath)?;
 
     // Update Headers
     let headers: &StringRecord = rdr.headers()?;
@@ -21,7 +23,7 @@ pub fn import_trades(config: &Config) -> Result<HashMap<String, Asset>, Box<dyn 
     // Process Rows
     let mut sorted_trades: HashMap<String, Asset> = HashMap::new();
     for record in rdr.records() {
-        let trade: Trade = process_record_into_trade(&record?, &header_indices, &config)?;
+        let trade: Trade = process_record_into_trade(&record?, &header_indices, config)?;
 
         let asset_name = trade.base_asset.to_owned();
 
@@ -71,7 +73,8 @@ fn build_header_indicies_map(headers: &StringRecord) -> HashMap<&str, usize> {
             | "quote_asset_amount" => {
                 header_map.insert(v, i);
             }
-            _ => (),
+            // "venue" => {header_map.insert(v, i);}
+             _ => (),
         }
     }
     header_map

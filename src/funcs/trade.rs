@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, ParseError};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::error::Error;
 use csv::StringRecord;
@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use crate::funcs::config::Config;
 use crate::funcs::txn_type::TxnType;
 
-
 /// Asset holds Trade events for a given asset
 #[derive(Debug, Clone)]
 pub struct Asset {
@@ -15,7 +14,19 @@ pub struct Asset {
     pub trades: Vec<Trade>,
 }
 
-/// Trade is created from a StringRecord in fn process_record_into_trade
+#[derive(thiserror::Error, Debug)]
+pub enum ValueParseError {
+    #[error("ERROR: Could not parse provided datetime: {0}")]
+    DatetimeFormatParseError(String),
+    #[error("ERROR: Could not parse provided amount: {value}")]
+    DecimalParseError {
+        value: String,
+        #[source]
+        source: rust_decimal::Error,
+    }
+}
+
+/// Trade is created from a StringRecord in the function process_record_into_trade
 #[derive(Debug, Clone)]
 pub struct Trade {
     pub trade_time: NaiveDateTime,
@@ -27,6 +38,7 @@ pub struct Trade {
     pub remaining: Decimal,
     pub unix_time: i64,
     pub price: f32,
+    // pub venue: Option<String>
 }
 
 impl Trade {
@@ -38,6 +50,7 @@ impl Trade {
         quote_asset: String,
         quote_asset_amount: String,
         config: &Config,
+        // venue: Option<String>,
     ) -> Result<Self, Box<dyn Error>> {
         
         // DateTime interpolations
@@ -51,10 +64,13 @@ impl Trade {
             &config.sell_txn_types,
         );
 
-        // Base and Quote Asset Amounts
-        let base_asset_amount: Decimal = base_asset_amount.parse::<Decimal>()?;
-        let quote_asset_amount: Decimal = quote_asset_amount.parse::<Decimal>()?;
+        // TxnType interpolation
+        let base_asset_amount: Decimal = base_asset_amount.parse::<Decimal>().
+            map_err(|e| ValueParseError::DecimalParseError { value: base_asset_amount.clone(), source: e })?;
 
+        let quote_asset_amount: Decimal = quote_asset_amount.parse::<Decimal>().
+            map_err(|e| ValueParseError::DecimalParseError { value: quote_asset_amount.clone(), source: e })?;
+        
         // Price
         let price = quote_asset_amount
             .checked_div(base_asset_amount)
@@ -63,6 +79,7 @@ impl Trade {
 
         let remaining: Decimal = base_asset_amount; // Field used to represent when a trade was processed in full or part
 
+        
         // Return
         Ok(Self {
             trade_time,
@@ -74,6 +91,7 @@ impl Trade {
             remaining,
             unix_time,
             price,
+            // venue,
         })
     }
 }
@@ -88,7 +106,12 @@ pub fn process_record_into_trade(record: &StringRecord, header_indices: &HashMap
     let base_asset_amount = get_value_from_record("base_asset_amount", record, header_indices)?;
     let quote_asset_amount = get_value_from_record("quote_asset_amount", record, header_indices)?;
     
-
+    // let venue = match config.venues.is_some() {
+    //     false => None,
+    //     true => Some(get_value_from_record("venue", record, header_indices)?),
+    // };
+    
+    
     Trade::new(
         time_string,
         txn_type_string,
@@ -97,15 +120,20 @@ pub fn process_record_into_trade(record: &StringRecord, header_indices: &HashMap
         quote_asset,
         quote_asset_amount,
         config,
+        // venue,
     )
 }
 
 pub fn get_value_from_record(field: &str, record: &StringRecord, header_indices: &HashMap<&str, usize>) -> Result<String, Box<dyn Error>> {
-    let header_index = header_indices.get(field).unwrap_or_else(|| panic!("Error parsing field {} in record {:?}", &field, &record));
+    // dbg!(&field);
+    // dbg!(&record);
+    // dbg!(&header_indices);
+    let header_index = header_indices.get(field).unwrap_or_else(|| panic!("Error parsing field '{}' in record {:?}", &field, &record));
     Ok(record.get(*header_index).unwrap().to_string())
 }
 
-pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, Box<dyn Error>> {
+
+pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, ValueParseError> {
     // Common Date Formats
     let common_formats = [
         "%Y-%m-%dT%H:%M:%S%.3fZ",
@@ -116,10 +144,10 @@ pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, Box<dyn Er
     ];
     
     for fmt in common_formats.iter() {
-        if let Ok(dt) = NaiveDateTime::parse_from_str(&datetime, fmt) {
+        if let Ok(dt) = NaiveDateTime::parse_from_str(datetime, fmt) {
             return Ok(dt);
         }
     }
-    Err(format!("Error parsing datetime {}", datetime).into())
+    Err(ValueParseError::DatetimeFormatParseError(datetime.to_string()))
 }
 

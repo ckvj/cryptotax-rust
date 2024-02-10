@@ -1,21 +1,24 @@
 mod funcs;
 use std::env;
 use std::error::Error;
-
+use colored::Colorize;
 
 
 /// Given filepath to config file
 fn main() -> Result<(), Box<dyn Error>> {
-    let config_filepath: String = collect_config_filepath().unwrap();
+    
+    // Config
+    let config_filepath: String = collect_config_filepath();
     let config = match funcs::config::build_config(&config_filepath) {
         Ok(config) => config,
-        Err(e) => panic!("Error: {}", e), // Question: I cannot seem to unpack the different types of Box Errors that can be returned, so need to panic
+        Err(ConfigParseError) => panic!("{}", ConfigParseError.to_string().on_purple()), 
     };
 
+    // Import Trades
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
+    // Sales
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-    
     cli_table::print_stdout(&sale_events).unwrap();
     println!("{}", sale_events.len());
 
@@ -27,12 +30,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     Ok(())
     
-    
 }
 
-fn collect_config_filepath() -> Option<String> {
-    match env::args().nth(1){
-        Some(filepath) => Some(filepath),
-        None => panic!("Please provide a filepath to the first argument"), // Question: How could I pass something back rather than panic?
+fn collect_config_filepath() -> String {
+    match env::args().nth(1) {
+        Some(filepath) => filepath,
+        None => panic!("Please provide a filepath to the config file as an argument"),
     }
 }
