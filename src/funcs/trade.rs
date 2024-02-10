@@ -1,18 +1,10 @@
 use chrono::{NaiveDateTime, ParseError};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::error::Error;
-use csv::StringRecord;
 use std::collections::HashMap;
 
 use crate::funcs::config::Config;
 use crate::funcs::txn_type::TxnType;
-
-/// Asset holds Trade events for a given asset
-#[derive(Debug, Clone)]
-pub struct Asset {
-    pub name: String,
-    pub trades: Vec<Trade>,
-}
 
 #[derive(thiserror::Error, Debug)]
 pub enum ValueParseError {
@@ -97,14 +89,14 @@ impl Trade {
 }
 
 
-pub fn process_record_into_trade(record: &StringRecord, header_indices: &HashMap<&str, usize>, config: &Config) -> Result<Trade, Box<dyn Error>> {
+pub fn process_record_into_trade(record: HashMap<String, String>, config:&Config) -> Result<Trade, Box<dyn Error>> {
 
-    let time_string = get_value_from_record("timestamp", record, header_indices)?;
-    let txn_type_string = get_value_from_record("txn_type", record, header_indices)?;
-    let base_asset = get_value_from_record("base_asset", record, header_indices)?;
-    let quote_asset = get_value_from_record("quote_asset", record, header_indices)?;
-    let base_asset_amount = get_value_from_record("base_asset_amount", record, header_indices)?;
-    let quote_asset_amount = get_value_from_record("quote_asset_amount", record, header_indices)?;
+    let time_string = record.get("timestamp").unwrap().to_string();
+    let txn_type_string = record.get("txn_type").unwrap().to_string();
+    let base_asset = record.get("base_asset").unwrap().to_string();
+    let quote_asset = record.get("quote_asset").unwrap().to_string();
+    let base_asset_amount = record.get("base_asset_amount").unwrap().to_string();
+    let quote_asset_amount = record.get("quote_asset_amount").unwrap().to_string();
     
     // let venue = match config.venues.is_some() {
     //     false => None,
@@ -122,14 +114,6 @@ pub fn process_record_into_trade(record: &StringRecord, header_indices: &HashMap
         config,
         // venue,
     )
-}
-
-pub fn get_value_from_record(field: &str, record: &StringRecord, header_indices: &HashMap<&str, usize>) -> Result<String, Box<dyn Error>> {
-    // dbg!(&field);
-    // dbg!(&record);
-    // dbg!(&header_indices);
-    let header_index = header_indices.get(field).unwrap_or_else(|| panic!("Error parsing field '{}' in record {:?}", &field, &record));
-    Ok(record.get(*header_index).unwrap().to_string())
 }
 
 
@@ -151,3 +135,10 @@ pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, ValueParse
     Err(ValueParseError::DatetimeFormatParseError(datetime.to_string()))
 }
 
+// pub fn get_value_from_record(field: &str, record: &StringRecord, header_indices: &HashMap<&str, usize>) -> Result<String, Box<dyn Error>> {
+//     // dbg!(&field);
+//     // dbg!(&record);
+//     // dbg!(&header_indices);
+//     let header_index = header_indices.get(field).unwrap_or_else(|| panic!("Error parsing field '{}' in record {:?}", &field, &record));
+//     Ok(record.get(*header_index).unwrap().to_string())
+// }

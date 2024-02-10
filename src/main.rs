@@ -19,8 +19,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Sales
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-    cli_table::print_stdout(&sale_events).unwrap();
-    println!("{}", sale_events.len());
+    // cli_table::print_stdout(&sale_events).unwrap();
+    // println!("{}", sale_events.len());
 
     let annual_summary = funcs::process_trades::get_annual_summary(&sale_events);
     

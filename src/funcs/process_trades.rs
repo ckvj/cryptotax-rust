@@ -6,7 +6,8 @@ use std::cmp::Reverse;
 use std::{cmp, collections::HashMap};
 
 use crate::funcs::config::{AccountingType, Config};
-use crate::funcs::trade::{Asset, Trade};
+use crate::funcs::trade::Trade;
+use crate::funcs::asset::Asset;
 use crate::funcs::txn_type::TxnType;
 
 
