@@ -10,6 +10,7 @@ use crate::funcs::trade::Trade;
 use crate::funcs::asset::Asset;
 use crate::funcs::txn_type::TxnType;
 
+use polars::prelude::*;
 
 /// SaleEvent is a Struct that holds individual sale event
 #[derive(Debug, Table, Clone)]
@@ -226,12 +227,11 @@ fn build_sale_list(trades: &[Trade], config: &Config) -> Vec<Trade> {
 }
 
 
-fn retain_only_designated_venues(trades: &Vec<Trade>, venues: Vec<String>) -> Vec<Trade> {
-    let mut updated_trades = trades.to_owned();
-    // updated_trades.retain(|trade| venues.contains(trade.venue.as_ref().unwrap()));
+// fn retain_only_designated_venues(trades: &Vec<Trade>, venues: Vec<String>) -> Vec<Trade> {
+//     let mut updated_trades = trades.to_owned();
+//     // updated_trades.retain(|trade| venues.contains(trade.venue.as_ref().unwrap()));
 
-    updated_trades
+//     updated_trades
 
 
-} 
-
+// } 

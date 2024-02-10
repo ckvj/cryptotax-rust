@@ -2,7 +2,9 @@ mod funcs;
 use std::env;
 use std::error::Error;
 use colored::Colorize;
+use polars::df;
 
+#[allow(warnings, dead_code)]
 
 /// Given filepath to config file
 fn main() -> Result<(), Box<dyn Error>> {
@@ -17,7 +19,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Import Trades
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
-    // Sales
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
     // cli_table::print_stdout(&sale_events).unwrap();
     // println!("{}", sale_events.len());
