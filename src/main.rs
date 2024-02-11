@@ -2,7 +2,7 @@ mod funcs;
 use std::env;
 use std::error::Error;
 use colored::Colorize;
-use polars::df;
+
 
 #[allow(warnings, dead_code)]
 
@@ -20,14 +20,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-    // cli_table::print_stdout(&sale_events).unwrap();
-    // println!("{}", sale_events.len());
+    
+    let df = funcs::process_trades::convert_vec_to_df(&sale_events);
+
+    let grouped_df = df
+        .group_by(["Asset Name", "Sell Year"])?
+        .select(["Gain-Loss"]).sum().unwrap()
+        .sort(&["Asset Name", "Sell Year"], false, false)?;
 
     let annual_summary = funcs::process_trades::get_annual_summary(&sale_events);
-    
-    annual_summary.
-        iter()
-        .for_each(|(k,v)| println!("{:?} {:?}", k,v));
+    println!("{}", annual_summary);
 
     Ok(())
     

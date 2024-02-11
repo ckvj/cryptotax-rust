@@ -3,6 +3,8 @@ use cli_table::Table;
 use itertools::Itertools;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::cmp::Reverse;
+use std::collections::{btree_map, BTreeMap};
+use std::fmt::Debug;
 use std::{cmp, collections::HashMap};
 
 use crate::funcs::config::{AccountingType, Config};
@@ -117,18 +119,7 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 }
 
 
-/// Gets the annual summary of sales.
-///
-/// # Arguments
-///
-/// * `sales` - A list of sale events.
-///
-/// # Returns
-///
-/// A hash map where the keys are the asset names and the values are hash maps
-/// where the keys are the sell years and the values are the gain or loss for that
-/// asset in that year.
-pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
+pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
     
     let unique_assets: Vec<String> = sales
         .iter()
@@ -136,36 +127,52 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f
         .collect::<Vec<String>>()
         .into_iter()
         .unique()
+        .sorted()
+        .collect();
+    
+    let unique_years: Vec<i32> = sales
+        .iter()
+        .map(|sale: &SaleEvent| sale.sell_year)
+        .collect::<Vec<i32>>()
+        .into_iter()
+        .unique()
+        .sorted()
         .collect();
 
-    let empty_hashmap: Vec<HashMap<i32, f32>> = vec![HashMap::new(); unique_assets.len()];
+    let mut map: BTreeMap<i32, BTreeMap<String, f32>> = BTreeMap::new();
 
-    let mut annual_summary = HashMap::from_iter(
-        unique_assets
-            .iter()
-            .cloned()
-            .zip(empty_hashmap.iter().cloned()),
-    );
+    for year in unique_years {
+        let mut inner_map: BTreeMap<String, f32> = BTreeMap::new();
+        for asset in unique_assets.iter() {
+            inner_map.insert(asset.to_owned(), 0.0);
+        }
+        map.insert(year, inner_map);
+    }
 
     for sale in sales.iter() {
-        if annual_summary[&sale.name].contains_key(&sale.sell_year) {
-            let v = annual_summary
-                .get_mut(&sale.name)
-                .unwrap()
-                .get_mut(&sale.sell_year)
-                .unwrap();
-            *v += sale.gain_loss; // Question: Why do I need to dereference here?
-        } else {
-            annual_summary
-                .get_mut(&sale.name)
-                .unwrap()
-                .insert(sale.sell_year, sale.gain_loss);
+        let val = *map.get_mut(&sale.sell_year).unwrap().get_mut(&sale.name).unwrap();
+        
+        if let Some(year_map) = map.get_mut(&sale.sell_year) {
+            if let Some(asset_value) = year_map.get_mut(&sale.name) {
+                let new_value = val + sale.gain_loss;
+                *asset_value = new_value;
+            }
         }
     }
 
-    annual_summary
-}
+    let asset_series = Series::new("Asset Name", unique_assets);
+    let mut df = DataFrame::new(vec![asset_series]).unwrap();
 
+    println!("{:?}", df);
+
+    for (k,v) in map {
+        let seri = Series::new(&k.to_string(), v.values().cloned().collect::<Vec<f32>>());
+        df.with_column(seri).unwrap();
+    } 
+    df
+
+
+}
 
 
 /// Builds a list of buys from the given list of trades, sorted by the specified accounting type.
@@ -198,7 +205,6 @@ pub fn build_buy_list(trades: &[Trade], config: &Config) -> Vec<Trade> {
     }
     buy_list
 }
-
 
 
 /// Builds a list of sales from the given list of trades.
@@ -235,3 +241,84 @@ fn build_sale_list(trades: &[Trade], config: &Config) -> Vec<Trade> {
 
 
 // } 
+
+
+pub fn convert_vec_to_df(sale_events: &Vec<SaleEvent>) -> DataFrame {
+    
+    let name: Series = Series::new("Asset Name", sale_events.iter().map(|event| event.name.clone()).collect::<Vec<String>>());
+    let buy_date: Series = Series::new("Buy Date", sale_events.iter().map(|event| event.buy_date).collect::<Vec<NaiveDateTime>>());
+    let buy_date_unix: Series = Series::new("Buy Date (Unix)", sale_events.iter().map(|event| event.buy_date_unix).collect::<Vec<i64>>());
+    let sale_date: Series = Series::new("Sale Date", sale_events.iter().map(|event| event.sale_date).collect::<Vec<NaiveDateTime>>());
+    let sale_date_unix: Series = Series::new("Sale Date (Unix)", sale_events.iter().map(|event| event.sale_date_unix).collect::<Vec<i64>>());
+    let purchase_price: Series = Series::new("Purchase Price", sale_events.iter().map(|event| event.purchase_price).collect::<Vec<f32>>());
+    let sale_price: Series = Series::new("Sale Price", sale_events.iter().map(|event| event.sale_price).collect::<Vec<f32>>());
+    let amount: Series = Series::new("Amount", sale_events.iter().map(|event| event.amount.to_f32().unwrap()).collect::<Vec<f32>>()); 
+    let gain_loss: Series = Series::new("Gain-Loss", sale_events.iter().map(|event| event.gain_loss).collect::<Vec<f32>>());
+    let sell_year: Series = Series::new("Sell Year", sale_events.iter().map(|event| event.sell_year).collect::<Vec<i32>>());
+    
+    let df = DataFrame::new(vec![
+        name,
+        buy_date,
+        buy_date_unix,
+        sale_date,
+        sale_date_unix,
+        purchase_price,
+        sale_price,
+        amount,
+        gain_loss,
+        sell_year,
+    ]);
+
+    df.unwrap()
+}
+
+
+
+// /// Gets the annual summary of sales.
+// ///
+// /// # Arguments
+// ///
+// /// * `sales` - A list of sale events.
+// ///
+// /// # Returns
+// ///
+// /// A hash map where the keys are the asset names and the values are hash maps
+// /// where the keys are the sell years and the values are the gain or loss for that
+// /// asset in that year.
+// pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
+    
+//     let unique_assets: Vec<String> = sales
+//         .iter()
+//         .map(|sale: &SaleEvent| sale.name.to_owned())
+//         .collect::<Vec<String>>()
+//         .into_iter()
+//         .unique()
+//         .collect();
+
+//     let empty_hashmap: Vec<HashMap<i32, f32>> = vec![HashMap::new(); unique_assets.len()];
+
+//     let mut annual_summary = HashMap::from_iter(
+//         unique_assets
+//             .iter()
+//             .cloned()
+//             .zip(empty_hashmap.iter().cloned()),
+//     );
+
+//     for sale in sales.iter() {
+//         if annual_summary[&sale.name].contains_key(&sale.sell_year) {
+//             let v = annual_summary
+//                 .get_mut(&sale.name)
+//                 .unwrap()
+//                 .get_mut(&sale.sell_year)
+//                 .unwrap();
+//             *v += sale.gain_loss; // Question: Why do I need to dereference here?
+//         } else {
+//             annual_summary
+//                 .get_mut(&sale.name)
+//                 .unwrap()
+//                 .insert(sale.sell_year, sale.gain_loss);
+//         }
+//     }
+
+//     annual_summary
+// }
