@@ -2,6 +2,7 @@
 
 use ini::Ini;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::{error::Error, fmt::Debug};
 
 
@@ -38,14 +39,14 @@ impl AccountingType {
 #[derive(Debug, Default)]
 pub struct Config {
     pub accounting_type: AccountingType,
-    pub filepath: String,
+    pub filepath: PathBuf,
     pub csv_columns: HashMap<String, String>,
     pub buy_txn_types: Vec<String>,
     pub sell_txn_types: Vec<String>,
     // pub venues: Option<Vec<String>>, // Optional Field
 }
 
-pub fn build_config(config_filepath: &str) -> Result<Config, ConfigParseError> {
+pub fn build_config(config_filepath: PathBuf) -> Result<Config, ConfigParseError> {
     let mut config = Config::default();
 
     let ini_file = Ini::load_from_file(config_filepath).map_err(ConfigParseError::IniLoadError)?;
@@ -61,7 +62,14 @@ pub fn build_config(config_filepath: &str) -> Result<Config, ConfigParseError> {
                 };
             }
             Some("file_info") => {
-                config.filepath = format!("{}{}", &ini_file[section]["dir"], &ini_file[section]["filename"]);
+                let dir = &ini_file[section]["dir"];
+                let filename = &ini_file[section]["filename"];
+                
+                if dir.is_empty() || filename.is_empty() {
+                    return Err(ConfigParseError::FilepathError);
+                }
+
+                config.filepath = PathBuf::from(dir).join(filename);
             }
             Some("csv_columns") => {
                 config.csv_columns = get_map_and_swap(&ini_file[section]);

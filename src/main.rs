@@ -2,7 +2,7 @@ mod funcs;
 use std::env;
 use std::error::Error;
 use colored::Colorize;
-
+use std::path::{Path, PathBuf};
 
 #[allow(warnings, dead_code)]
 
@@ -10,14 +10,14 @@ use colored::Colorize;
 fn main() -> Result<(), Box<dyn Error>> {
     
     // Config
-    let config_filepath: String = collect_config_filepath();
-    let config = match funcs::config::build_config(&config_filepath) {
+    let config_filepath: PathBuf = collect_config_filepath()?;
+    let config = match funcs::config::build_config(config_filepath) {
         Ok(config) => config,
         Err(ConfigParseError) => panic!("{}", ConfigParseError.to_string().on_purple()), 
     };
 
     // Import Trades
-    let trades = funcs::import_trades::import_trades(&config).unwrap();
+    let trades: std::collections::HashMap<String, funcs::asset::Asset> = funcs::import_trades::import_trades(&config).unwrap();
 
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
     
@@ -35,9 +35,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     
 }
 
-fn collect_config_filepath() -> String {
+
+fn collect_config_filepath() -> Result<PathBuf, String> {
     match env::args().nth(1) {
-        Some(filepath) => filepath,
-        None => panic!("Please provide a filepath to the config file as an argument"),
+        Some(filepath) => Ok(PathBuf::from(filepath)), // TODO: Check if file exists
+        None => Err("Please provide a filepath to the config file as an argument".to_string()),
     }
 }
