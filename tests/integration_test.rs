@@ -1,11 +1,13 @@
+use std::path::PathBuf;
+
 use cryptotax::funcs;
 use cryptotax::funcs::config::AccountingType;
 
 #[test]
 fn integration_test() {
 
-    let config_filepath = String::from("tests/test_config.ini");
-    let mut config = funcs::config::build_config(&config_filepath).unwrap();
+    let config_filepath = PathBuf::from("tests/test_config.ini");
+    let mut config = funcs::config::build_config(config_filepath).unwrap();
 
     assert!(matches!(config.accounting_type, AccountingType::FIFO | AccountingType::LIFO | AccountingType::HIFO));
     
