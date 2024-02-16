@@ -1,11 +1,12 @@
 
-use chrono::{NaiveDateTime, ParseError};
+use chrono::NaiveDateTime;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::error::Error;
-use std::collections::HashMap;
 
 use crate::funcs::config::Config;
 use crate::funcs::txn_type::TxnType;
+use crate::funcs::import_trades::CsvRecord;
+
 
 #[derive(thiserror::Error, Debug)]
 pub enum ValueParseError {
@@ -19,7 +20,7 @@ pub enum ValueParseError {
     }
 }
 
-/// Trade is created from a StringRecord in the function process_record_into_trade
+/// Trade represents each unique buy/sell transaction. Created from a CsvRecord and Config 
 #[derive(Debug, Clone)]
 pub struct Trade {
     pub trade_time: NaiveDateTime,
@@ -31,38 +32,28 @@ pub struct Trade {
     pub remaining: Decimal,
     pub unix_time: i64,
     pub price: f32,
-    // pub venue: Option<String>
 }
 
 impl Trade {
-    pub fn new(
-        time_string: String,
-        txn_type_string: String,
-        base_asset: String,
-        base_asset_amount: String,
-        quote_asset: String,
-        quote_asset_amount: String,
-        config: &Config,
-        // venue: Option<String>,
-    ) -> Result<Self, Box<dyn Error>> {
+    pub fn new(record: CsvRecord, config: &Config) -> Result<Self, Box<dyn Error>> {
         
-        // DateTime interpolations
-        let trade_time = parse_datetime_string(&time_string)?;
+        // NaiveDateTime interpolation
+        let trade_time = parse_datetime_string(&record.timestamp)?;
         let unix_time: i64 = NaiveDateTime::timestamp(&trade_time);
 
         // TxnType interpolation
         let txn_type = TxnType::return_txn_type(
-            &txn_type_string,
+            &record.txn_type,
             &config.buy_txn_types,
             &config.sell_txn_types,
         );
 
-        // TxnType interpolation
-        let base_asset_amount: Decimal = base_asset_amount.parse::<Decimal>().
-            map_err(|e| ValueParseError::DecimalParseError { value: base_asset_amount.clone(), source: e })?;
+        // Decimal conversions
+        let base_asset_amount: Decimal = record.base_asset_amount.parse::<Decimal>().
+            map_err(|e| ValueParseError::DecimalParseError { value: record.base_asset_amount.clone(), source: e })?;
 
-        let quote_asset_amount: Decimal = quote_asset_amount.parse::<Decimal>().
-            map_err(|e| ValueParseError::DecimalParseError { value: quote_asset_amount.clone(), source: e })?;
+        let quote_asset_amount: Decimal = record.quote_asset_amount.parse::<Decimal>().
+            map_err(|e| ValueParseError::DecimalParseError { value: record.quote_asset_amount.clone(), source: e })?;
         
         // Price
         let price = quote_asset_amount
@@ -77,44 +68,15 @@ impl Trade {
         Ok(Self {
             trade_time,
             txn_type,
-            base_asset,
+            base_asset: record.base_asset,
             base_asset_amount,
-            quote_asset,
+            quote_asset: record.quote_asset,
             quote_asset_amount,
             remaining,
             unix_time,
             price,
-            // venue,
         })
     }
-}
-
-
-pub fn process_record_into_trade(record: HashMap<String, String>, config:&Config) -> Result<Trade, Box<dyn Error>> {
-
-    let time_string = record.get("timestamp").unwrap().to_string();
-    let txn_type_string = record.get("txn_type").unwrap().to_string();
-    let base_asset = record.get("base_asset").unwrap().to_string();
-    let quote_asset = record.get("quote_asset").unwrap().to_string();
-    let base_asset_amount = record.get("base_asset_amount").unwrap().to_string();
-    let quote_asset_amount = record.get("quote_asset_amount").unwrap().to_string();
-    
-    // let venue = match config.venues.is_some() {
-    //     false => None,
-    //     true => Some(get_value_from_record("venue", record, header_indices)?),
-    // };
-    
-    
-    Trade::new(
-        time_string,
-        txn_type_string,
-        base_asset,
-        base_asset_amount,
-        quote_asset,
-        quote_asset_amount,
-        config,
-        // venue,
-    )
 }
 
 
@@ -135,11 +97,3 @@ pub fn parse_datetime_string(datetime: &str) -> Result<NaiveDateTime, ValueParse
     }
     Err(ValueParseError::DatetimeFormatParseError(datetime.to_string()))
 }
-
-// pub fn get_value_from_record(field: &str, record: &StringRecord, header_indices: &HashMap<&str, usize>) -> Result<String, Box<dyn Error>> {
-//     // dbg!(&field);
-//     // dbg!(&record);
-//     // dbg!(&header_indices);
-//     let header_index = header_indices.get(field).unwrap_or_else(|| panic!("Error parsing field '{}' in record {:?}", &field, &record));
-//     Ok(record.get(*header_index).unwrap().to_string())
-// }
