@@ -152,11 +152,11 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
 
     }
 
+    // Initialize Dataframe with Unique Assets
     let asset_series = Series::new("Asset Name", unique_assets);
     let mut df = DataFrame::new(vec![asset_series]).unwrap();
 
-    println!("{:?}", df);
-
+    // Loop over years to populate data
     for (k,v) in map {
         let seri = Series::new(&k.to_string(), v.values().cloned().collect::<Vec<f32>>());
         df.with_column(seri).unwrap();
