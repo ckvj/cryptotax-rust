@@ -3,13 +3,12 @@ use cli_table::Table;
 use itertools::Itertools;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use std::cmp::Reverse;
-use std::collections::{btree_map, BTreeMap};
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::{cmp, collections::HashMap};
 
 use crate::funcs::config::{AccountingType, Config};
 use crate::funcs::trade::Trade;
-use crate::funcs::asset::Asset;
 use crate::funcs::txn_type::TxnType;
 
 use polars::prelude::*;
@@ -17,18 +16,16 @@ use polars::prelude::*;
 /// SaleEvent is a Struct that holds individual sale event
 #[derive(Debug, Table, Clone)]
 pub struct SaleEvent {
-    #[table(title = "Asset Name")] name: String,
-    #[table(title = "Buy Date")] buy_date: NaiveDateTime,
-    #[table(title = "Buy Date (Unix)")] buy_date_unix: i64,
-    // #[table(title = "Buy Venue")] buy_venue: String,
-    #[table(title = "Sale Date")] sale_date: NaiveDateTime,
-    #[table(title = "Sale Date (Unix)")] sale_date_unix: i64,
-    // #[table(title = "Sale Venue")] sale_venue: String,
-    #[table(title = "Purchase Price")] purchase_price: f32,
-    #[table(title = "Sale Price")] sale_price: f32,
-    #[table(title = "Amount")] amount: Decimal,
-    #[table(title = "Gain-Loss")] pub gain_loss: f32,
-    #[table(title = "Sell Year")] pub sell_year: i32,
+    name: String,
+    buy_date: NaiveDateTime,
+    buy_date_unix: i64,
+    sale_date: NaiveDateTime,
+    sale_date_unix: i64,
+    purchase_price: f32,
+    sale_price: f32,
+    amount: Decimal,
+    pub gain_loss: f32,
+    pub sell_year: i32,
 }
 
 impl SaleEvent {
@@ -36,10 +33,8 @@ impl SaleEvent {
         let name: String = sale.base_asset.to_owned();
         let buy_date: NaiveDateTime = buy.trade_time.to_owned();
         let buy_date_unix: i64 = buy.unix_time.to_owned();
-        // let buy_venue: String = buy.venue.to_owned().unwrap_or("".to_string());
         let sale_date = sale.trade_time.to_owned();
         let sale_date_unix: i64 = sale.unix_time.to_owned();
-        // let sale_venue: String = sale.venue.to_owned().unwrap_or("".to_string());
         let purchase_price: f32 = buy.price.to_owned();
         let sale_price = sale.price.to_owned();
         let gain_loss = (sale_price - purchase_price) * amount.to_f32().unwrap();
@@ -49,10 +44,8 @@ impl SaleEvent {
             name,
             buy_date,
             buy_date_unix,
-            // buy_venue,
             sale_date,
             sale_date_unix,
-            // sale_venue,
             purchase_price,
             sale_price,
             amount,
@@ -74,25 +67,24 @@ impl SaleEvent {
 /// # Returns
 ///
 /// A list of sale events for the asset.
-pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<SaleEvent> {
+pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config) -> Vec<SaleEvent> {
     let mut sale_events: Vec<SaleEvent> = vec![];
     let dust_threshold = Decimal::from_f32_retain(0.00001).unwrap(); // Account for deiminumus reporting errors
 
 
-    for (_, asset) in trades.iter() {
+    for (_, trades) in all_trades.iter() {
 
-        
-        let mut buy_txn_list = build_buy_list(&asset.trades, config);
-        let mut sale_txn_list = build_sale_list(&asset.trades, config);
+        let mut buy_txn_list = build_buy_list(trades, &config.accounting_type); // Filter and sort buys based on accounting type (eg FIFO)
+        let mut sale_txn_list = build_sale_list(trades); // Filter and sort sales chronologically
 
         if sale_txn_list.is_empty() {
-            continue;
+            continue; // Skip asset if no sales
         }
 
         for sale in sale_txn_list.iter_mut() {
             for buy in buy_txn_list.iter_mut() {
-                // Proceed for valid buy events
-
+                
+                // Filter for invalid buy transactions
                 if buy.unix_time > sale.unix_time || buy.remaining < dust_threshold {
                     continue;
                 }
@@ -104,7 +96,7 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
 
                 buy.remaining -= clip_size;
                 sale.remaining -= clip_size;
-
+                
                 if buy.remaining < dust_threshold {
                     continue;
                 }
@@ -117,6 +109,7 @@ pub fn get_sale_events(trades: HashMap<String, Asset>, config: &Config) -> Vec<S
     }
     sale_events
 }
+
 
 
 pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
@@ -186,19 +179,14 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
 ///
 /// A list of buys, sorted by the specified accounting type.
 ///
-pub fn build_buy_list(trades: &[Trade], config: &Config) -> Vec<Trade> {
+pub fn build_buy_list(trades: &[Trade], acct_type: &AccountingType) -> Vec<Trade> {
     let mut buy_list: Vec<Trade> = trades
         .iter()
         .filter(|trade| trade.txn_type == TxnType::Buy)
         .cloned()
         .collect();
 
-    // if config.venues.is_some() {
-    //     let venues = config.venues.clone().unwrap();
-    //     buy_list = retain_only_designated_venues(&buy_list, venues);
-    // }
-
-    match config.accounting_type {
+    match acct_type {
         AccountingType::FIFO => buy_list.sort_by_key(|k| k.trade_time),
         AccountingType::LIFO => buy_list.sort_by_key(|k| Reverse(k.trade_time)),
         AccountingType::HIFO => buy_list.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap()),
@@ -216,34 +204,19 @@ pub fn build_buy_list(trades: &[Trade], config: &Config) -> Vec<Trade> {
 /// # Returns
 ///
 /// A list of sales, sorted by trade time.
-fn build_sale_list(trades: &[Trade], config: &Config) -> Vec<Trade> {
+fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
     let mut sale_list: Vec<Trade> = trades
         .iter()
         .filter(|trade| trade.txn_type == TxnType::Sale)
         .cloned()
         .collect();
 
-    // if config.venues.is_some() {
-    //     let venues = config.venues.clone().unwrap();
-    //     sale_list = retain_only_designated_venues(&sale_list, venues);
-    // }
-
     sale_list.sort_by_key(|k| k.trade_time);
     sale_list
 }
 
 
-// fn retain_only_designated_venues(trades: &Vec<Trade>, venues: Vec<String>) -> Vec<Trade> {
-//     let mut updated_trades = trades.to_owned();
-//     // updated_trades.retain(|trade| venues.contains(trade.venue.as_ref().unwrap()));
-
-//     updated_trades
-
-
-// } 
-
-
-pub fn convert_vec_to_df(sale_events: &Vec<SaleEvent>) -> DataFrame {
+pub fn convert_vec_to_df(sale_events: &[SaleEvent]) -> DataFrame {
     
     let name: Series = Series::new("Asset Name", sale_events.iter().map(|event| event.name.clone()).collect::<Vec<String>>());
     let buy_date: Series = Series::new("Buy Date", sale_events.iter().map(|event| event.buy_date).collect::<Vec<NaiveDateTime>>());
@@ -321,4 +294,18 @@ pub fn convert_vec_to_df(sale_events: &Vec<SaleEvent>) -> DataFrame {
 //     }
 
 //     annual_summary
+// }
+
+
+// pub struct SaleEvent {
+//     #[table(title = "Asset Name")] name: String,
+//     #[table(title = "Buy Date")] buy_date: NaiveDateTime,
+//     #[table(title = "Buy Date (Unix)")] buy_date_unix: i64,
+//     #[table(title = "Sale Date")] sale_date: NaiveDateTime,
+//     #[table(title = "Sale Date (Unix)")] sale_date_unix: i64,
+//     #[table(title = "Purchase Price")] purchase_price: f32,
+//     #[table(title = "Sale Price")] sale_price: f32,
+//     #[table(title = "Amount")] amount: Decimal,
+//     #[table(title = "Gain-Loss")] pub gain_loss: f32,
+//     #[table(title = "Sell Year")] pub sell_year: i32,
 // }

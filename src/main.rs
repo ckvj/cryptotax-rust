@@ -2,7 +2,7 @@ mod funcs;
 use std::env;
 use std::error::Error;
 use colored::Colorize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[allow(warnings, dead_code)]
 
@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     // Import Trades
-    let trades: std::collections::HashMap<String, funcs::asset::Asset> = funcs::import_trades::import_trades(&config).unwrap();
+    let trades = funcs::import_trades::import_trades(&config).unwrap();
 
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
     

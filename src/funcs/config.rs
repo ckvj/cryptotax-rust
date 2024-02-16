@@ -92,8 +92,7 @@ pub fn build_config(config_filepath: PathBuf) -> Result<Config, ConfigParseError
                 }
             }
             _ => {
-                println!("Attempt to import unknown section");
-                dbg!(&section);
+                println!("Attempt to import unknown section: {}", section.unwrap());
             }
         }
     }

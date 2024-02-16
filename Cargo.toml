@@ -14,7 +14,7 @@ path = "src/lib.rs"
 rust-ini = "0.19.0"
 chrono = "0.4.26"
 csv = "1.2.2"
-serde = "1.0.164"
+serde = { version = "1.0.164", features = ["derive"] }
 rust_decimal = "1.30.0"
 cli-table = "0.4"
 itertools = "0.11.0"
