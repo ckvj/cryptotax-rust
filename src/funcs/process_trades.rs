@@ -132,25 +132,24 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
         .sorted()
         .collect();
 
-    let mut map: BTreeMap<i32, BTreeMap<String, f32>> = BTreeMap::new();
+    // Empty Map of <Year<Asset, Gain-Loss>>
+    let mut map: BTreeMap<i32, BTreeMap<String, f32>> = BTreeMap::default(); 
 
+    // Create a default inner Map for each year
+    let default_empty_dict: BTreeMap<String, f32> = unique_assets
+        .iter()
+        .map(|asset| (asset.to_owned(), 0.0))
+        .collect();
+ 
     for year in unique_years {
-        let mut inner_map: BTreeMap<String, f32> = BTreeMap::new();
-        for asset in unique_assets.iter() {
-            inner_map.insert(asset.to_owned(), 0.0);
-        }
-        map.insert(year, inner_map);
+        map.insert(year, default_empty_dict.clone());
     }
 
+    // Update gain-loss for each sale
     for sale in sales.iter() {
-        let val = *map.get_mut(&sale.sell_year).unwrap().get_mut(&sale.name).unwrap();
-        
-        if let Some(year_map) = map.get_mut(&sale.sell_year) {
-            if let Some(asset_value) = year_map.get_mut(&sale.name) {
-                let new_value = val + sale.gain_loss;
-                *asset_value = new_value;
-            }
-        }
+        let val = map.get_mut(&sale.sell_year).unwrap().get_mut(&sale.name).unwrap();
+        *val += sale.gain_loss;
+
     }
 
     let asset_series = Series::new("Asset Name", unique_assets);
