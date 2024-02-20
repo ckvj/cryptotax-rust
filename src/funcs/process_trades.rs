@@ -149,7 +149,6 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
     for sale in sales.iter() {
         let val = map.get_mut(&sale.sell_year).unwrap().get_mut(&sale.name).unwrap();
         *val += sale.gain_loss;
-
     }
 
     // Initialize Dataframe with Unique Assets
@@ -158,8 +157,8 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
 
     // Loop over years to populate data
     for (k,v) in map {
-        let seri = Series::new(&k.to_string(), v.values().cloned().collect::<Vec<f32>>());
-        df.with_column(seri).unwrap();
+        let _series = Series::new(&k.to_string(), v.values().cloned().collect::<Vec<f32>>());
+        df.with_column(_series).unwrap();
     } 
     df
 
@@ -215,34 +214,34 @@ fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
 }
 
 
-pub fn convert_vec_to_df(sale_events: &[SaleEvent]) -> DataFrame {
+// pub fn convert_vec_to_df(sale_events: &[SaleEvent]) -> DataFrame {
     
-    let name: Series = Series::new("Asset Name", sale_events.iter().map(|event| event.name.clone()).collect::<Vec<String>>());
-    let buy_date: Series = Series::new("Buy Date", sale_events.iter().map(|event| event.buy_date).collect::<Vec<NaiveDateTime>>());
-    let buy_date_unix: Series = Series::new("Buy Date (Unix)", sale_events.iter().map(|event| event.buy_date_unix).collect::<Vec<i64>>());
-    let sale_date: Series = Series::new("Sale Date", sale_events.iter().map(|event| event.sale_date).collect::<Vec<NaiveDateTime>>());
-    let sale_date_unix: Series = Series::new("Sale Date (Unix)", sale_events.iter().map(|event| event.sale_date_unix).collect::<Vec<i64>>());
-    let purchase_price: Series = Series::new("Purchase Price", sale_events.iter().map(|event| event.purchase_price).collect::<Vec<f32>>());
-    let sale_price: Series = Series::new("Sale Price", sale_events.iter().map(|event| event.sale_price).collect::<Vec<f32>>());
-    let amount: Series = Series::new("Amount", sale_events.iter().map(|event| event.amount.to_f32().unwrap()).collect::<Vec<f32>>()); 
-    let gain_loss: Series = Series::new("Gain-Loss", sale_events.iter().map(|event| event.gain_loss).collect::<Vec<f32>>());
-    let sell_year: Series = Series::new("Sell Year", sale_events.iter().map(|event| event.sell_year).collect::<Vec<i32>>());
+//     let name: Series = Series::new("Asset Name", sale_events.iter().map(|event| event.name.clone()).collect::<Vec<String>>());
+//     let buy_date: Series = Series::new("Buy Date", sale_events.iter().map(|event| event.buy_date).collect::<Vec<NaiveDateTime>>());
+//     let buy_date_unix: Series = Series::new("Buy Date (Unix)", sale_events.iter().map(|event| event.buy_date_unix).collect::<Vec<i64>>());
+//     let sale_date: Series = Series::new("Sale Date", sale_events.iter().map(|event| event.sale_date).collect::<Vec<NaiveDateTime>>());
+//     let sale_date_unix: Series = Series::new("Sale Date (Unix)", sale_events.iter().map(|event| event.sale_date_unix).collect::<Vec<i64>>());
+//     let purchase_price: Series = Series::new("Purchase Price", sale_events.iter().map(|event| event.purchase_price).collect::<Vec<f32>>());
+//     let sale_price: Series = Series::new("Sale Price", sale_events.iter().map(|event| event.sale_price).collect::<Vec<f32>>());
+//     let amount: Series = Series::new("Amount", sale_events.iter().map(|event| event.amount.to_f32().unwrap()).collect::<Vec<f32>>()); 
+//     let gain_loss: Series = Series::new("Gain-Loss", sale_events.iter().map(|event| event.gain_loss).collect::<Vec<f32>>());
+//     let sell_year: Series = Series::new("Sell Year", sale_events.iter().map(|event| event.sell_year).collect::<Vec<i32>>());
     
-    let df = DataFrame::new(vec![
-        name,
-        buy_date,
-        buy_date_unix,
-        sale_date,
-        sale_date_unix,
-        purchase_price,
-        sale_price,
-        amount,
-        gain_loss,
-        sell_year,
-    ]);
+//     let df = DataFrame::new(vec![
+//         name,
+//         buy_date,
+//         buy_date_unix,
+//         sale_date,
+//         sale_date_unix,
+//         purchase_price,
+//         sale_price,
+//         amount,
+//         gain_loss,
+//         sell_year,
+//     ]);
 
-    df.unwrap()
-}
+//     df.unwrap()
+// }
 
 
 
