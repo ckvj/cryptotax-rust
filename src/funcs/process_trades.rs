@@ -6,6 +6,8 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::{cmp, collections::HashMap};
+use serde::{Serialize, Serializer};
+
 
 use crate::funcs::config::{AccountingType, Config};
 use crate::funcs::trade::Trade;
@@ -14,11 +16,13 @@ use crate::funcs::txn_type::TxnType;
 use polars::prelude::*;
 
 /// SaleEvent is a Struct that holds individual sale event
-#[derive(Debug, Table, Clone)]
+#[derive(Debug, Table, Clone, Serialize)]
 pub struct SaleEvent {
     name: String,
+    #[serde(serialize_with = "serialize_datetime")]
     buy_date: NaiveDateTime,
     buy_date_unix: i64,
+    #[serde(serialize_with = "serialize_datetime")]
     sale_date: NaiveDateTime,
     sale_date_unix: i64,
     purchase_price: f32,
@@ -27,6 +31,15 @@ pub struct SaleEvent {
     pub gain_loss: f32,
     pub sell_year: i32,
 }
+
+fn serialize_datetime<S>(dt: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = dt.format("%Y-%m-%d %H:%M:%S").to_string();
+    serializer.serialize_str(&s)
+}
+
 
 impl SaleEvent {
     fn new(buy: &Trade, sale: &Trade, amount: Decimal) -> Self {
@@ -83,7 +96,7 @@ pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config)
 
         for sale in sale_txn_list.iter_mut() {
             for buy in buy_txn_list.iter_mut() {
-                
+
                 // Filter for invalid buy transactions
                 if buy.unix_time > sale.unix_time || buy.remaining < dust_threshold {
                     continue;
@@ -96,7 +109,7 @@ pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config)
 
                 buy.remaining -= clip_size;
                 sale.remaining -= clip_size;
-                
+
                 if buy.remaining < dust_threshold {
                     continue;
                 }
@@ -113,7 +126,7 @@ pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config)
 
 
 pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
-    
+
     let unique_assets: Vec<String> = sales
         .iter()
         .map(|sale: &SaleEvent| sale.name.to_owned())
@@ -122,7 +135,7 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
         .unique()
         .sorted()
         .collect();
-    
+
     let unique_years: Vec<i32> = sales
         .iter()
         .map(|sale: &SaleEvent| sale.sell_year)
@@ -133,14 +146,14 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
         .collect();
 
     // Empty Map of <Year<Asset, Gain-Loss>>
-    let mut map: BTreeMap<i32, BTreeMap<String, f32>> = BTreeMap::default(); 
+    let mut map: BTreeMap<i32, BTreeMap<String, f32>> = BTreeMap::default();
 
     // Create a default inner Map for each year
     let default_empty_dict: BTreeMap<String, f32> = unique_assets
         .iter()
         .map(|asset| (asset.to_owned(), 0.0))
         .collect();
- 
+
     for year in unique_years {
         map.insert(year, default_empty_dict.clone());
     }
@@ -159,7 +172,7 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
     for (k,v) in map {
         let _series = Series::new(&k.to_string(), v.values().cloned().collect::<Vec<f32>>());
         df.with_column(_series).unwrap();
-    } 
+    }
     df
 
 
@@ -215,7 +228,7 @@ fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
 
 
 // pub fn convert_vec_to_df(sale_events: &[SaleEvent]) -> DataFrame {
-    
+
 //     let name: Series = Series::new("Asset Name", sale_events.iter().map(|event| event.name.clone()).collect::<Vec<String>>());
 //     let buy_date: Series = Series::new("Buy Date", sale_events.iter().map(|event| event.buy_date).collect::<Vec<NaiveDateTime>>());
 //     let buy_date_unix: Series = Series::new("Buy Date (Unix)", sale_events.iter().map(|event| event.buy_date_unix).collect::<Vec<i64>>());
@@ -223,10 +236,10 @@ fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
 //     let sale_date_unix: Series = Series::new("Sale Date (Unix)", sale_events.iter().map(|event| event.sale_date_unix).collect::<Vec<i64>>());
 //     let purchase_price: Series = Series::new("Purchase Price", sale_events.iter().map(|event| event.purchase_price).collect::<Vec<f32>>());
 //     let sale_price: Series = Series::new("Sale Price", sale_events.iter().map(|event| event.sale_price).collect::<Vec<f32>>());
-//     let amount: Series = Series::new("Amount", sale_events.iter().map(|event| event.amount.to_f32().unwrap()).collect::<Vec<f32>>()); 
+//     let amount: Series = Series::new("Amount", sale_events.iter().map(|event| event.amount.to_f32().unwrap()).collect::<Vec<f32>>());
 //     let gain_loss: Series = Series::new("Gain-Loss", sale_events.iter().map(|event| event.gain_loss).collect::<Vec<f32>>());
 //     let sell_year: Series = Series::new("Sell Year", sale_events.iter().map(|event| event.sell_year).collect::<Vec<i32>>());
-    
+
 //     let df = DataFrame::new(vec![
 //         name,
 //         buy_date,
@@ -257,7 +270,7 @@ fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
 // /// where the keys are the sell years and the values are the gain or loss for that
 // /// asset in that year.
 // pub fn get_annual_summary(sales: &[SaleEvent]) -> HashMap<String, HashMap<i32, f32>> {
-    
+
 //     let unique_assets: Vec<String> = sales
 //         .iter()
 //         .map(|sale: &SaleEvent| sale.name.to_owned())

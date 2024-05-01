@@ -64,7 +64,7 @@ pub fn build_config(config_filepath: PathBuf) -> Result<Config, ConfigParseError
             Some("file_info") => {
                 let dir = &ini_file[section]["dir"];
                 let filename = &ini_file[section]["filename"];
-                
+
                 if dir.is_empty() || filename.is_empty() {
                     return Err(ConfigParseError::FilepathError);
                 }
@@ -108,7 +108,7 @@ pub fn build_config(config_filepath: PathBuf) -> Result<Config, ConfigParseError
 // }
 
 fn string_to_vec(string_: &str) -> Vec<String> {
-    
+
     string_
     .split(',')
     .map(|s| s.trim().to_string())
