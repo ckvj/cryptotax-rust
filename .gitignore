@@ -15,5 +15,8 @@ Cargo.lock
 
 .vscode
 
+# Package Specific
 CryptoTxns.csv
 config.ini
+sale_events.csv
+annual_summary.csv

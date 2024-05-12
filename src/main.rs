@@ -24,22 +24,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Import Trades
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
+    // Process Trades
     let sale_events = funcs::process_trades::get_sale_events(trades, &config);
-    vec_to_csv(&sale_events, "sale_events_");
-
-    // let df = funcs::process_trades::convert_vec_to_df(&sale_events);
-
-    // let grouped_df = df
-    //     .group_by(["Asset Name", "Sell Year"])?
-    //     .select(["Gain-Loss"]).sum().unwrap()
-    //     .sort(&["Asset Name", "Sell Year"], false, false)?;
-
     let mut annual_summary = funcs::process_trades::get_annual_summary(&sale_events);
     println!("{}", annual_summary);
+    
+    // Export
+    vec_to_csv(&sale_events, "sale_events");
     df_to_csv(&annual_summary, "annual_summary")?;
 
     Ok(())
-
 }
 
 
@@ -58,8 +52,8 @@ fn df_to_csv(df: &DataFrame, csv_name: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn vec_to_csv(vec: &Vec<SaleEvent>, csv_name: &str) -> Result<(), Box<dyn Error>> {
-    let vec = vec.clone();
+fn vec_to_csv(vec: &[SaleEvent], csv_name: &str) -> Result<(), Box<dyn Error>> {
+    let vec = vec.to_owned();
     let mut writer = csv::Writer::from_path(format!("{}.csv",csv_name))?;
     for row in &vec {
         writer.serialize(row)?;
@@ -67,3 +61,13 @@ fn vec_to_csv(vec: &Vec<SaleEvent>, csv_name: &str) -> Result<(), Box<dyn Error>
     writer.flush()?;
     Ok(())
 }
+
+
+// OLD CODE
+
+  // let df = funcs::process_trades::convert_vec_to_df(&sale_events);
+
+    // let grouped_df = df
+    //     .group_by(["Asset Name", "Sell Year"])?
+    //     .select(["Gain-Loss"]).sum().unwrap()
+    //     .sort(&["Asset Name", "Sell Year"], false, false)?;

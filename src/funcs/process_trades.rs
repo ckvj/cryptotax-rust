@@ -110,13 +110,13 @@ pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config)
                 buy.remaining -= clip_size;
                 sale.remaining -= clip_size;
 
+                if sale.remaining < dust_threshold {
+                    break;
+                }
+                
                 if buy.remaining < dust_threshold {
                     continue;
                 }
-            }
-
-            if sale.remaining < dust_threshold {
-                continue;
             }
         }
     }
