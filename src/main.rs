@@ -25,11 +25,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     let trades = funcs::import_trades::import_trades(&config).unwrap();
 
     // Process Trades
-    let sale_events = funcs::process_trades::get_sale_events(trades, &config);
+    let (sale_events, cost_bases) = funcs::process_trades::get_sale_events_and_cost_basis(trades, &config);
     let mut annual_summary = funcs::process_trades::get_annual_summary(&sale_events);
-    println!("{}", annual_summary);
+    
     
     // Export
+    println!("{:?}", cost_bases);
+    println!("{}", annual_summary);
     vec_to_csv(&sale_events, "sale_events");
     df_to_csv(&annual_summary, "annual_summary")?;
 
