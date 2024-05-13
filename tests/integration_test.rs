@@ -14,7 +14,7 @@ fn integration_test() {
     for i in [AccountingType::FIFO, AccountingType::LIFO, AccountingType::HIFO].iter() {
         config.accounting_type = i.clone();
         let trades = funcs::import_trades::import_trades(&config).unwrap();
-        let sale_events = funcs::process_trades::get_sale_events(trades, &config);
+        let (sale_events, _) = funcs::process_trades::get_sale_events_and_cost_basis(trades, &config);
         let gain_loss_summary: f32 = sale_events.iter().map(|sale_event| sale_event.gain_loss).sum();
 
         match config.accounting_type {

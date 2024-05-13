@@ -15,7 +15,8 @@ use crate::funcs::txn_type::TxnType;
 
 use polars::prelude::*;
 
-/// SaleEvent is a Struct that holds individual sale event
+
+/// SaleEvent holds individual sale events
 #[derive(Debug, Table, Clone, Serialize)]
 pub struct SaleEvent {
     name: String,
@@ -32,15 +33,8 @@ pub struct SaleEvent {
     pub sell_year: i32,
 }
 
-fn serialize_datetime<S>(dt: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let s = dt.format("%Y-%m-%d %H:%M:%S").to_string();
-    serializer.serialize_str(&s)
-}
 
-
+// SaleEvent Constructor
 impl SaleEvent {
     fn new(buy: &Trade, sale: &Trade, amount: Decimal) -> Self {
         let name: String = sale.base_asset.to_owned();
@@ -69,7 +63,6 @@ impl SaleEvent {
 }
 
 
-
 /// Gets the sale events for an asset.
 ///
 /// # Arguments
@@ -80,14 +73,17 @@ impl SaleEvent {
 /// # Returns
 ///
 /// A list of sale events for the asset.
-pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config) -> Vec<SaleEvent> {
+pub fn get_sale_events_and_cost_basis(all_trades: HashMap<String, Vec<Trade>>, config: &Config) -> (Vec<SaleEvent>, HashMap<String, f32>){
     let mut sale_events: Vec<SaleEvent> = vec![];
+    let mut cost_bases: HashMap<String, f32> = HashMap::new();
     let dust_threshold = Decimal::from_f32_retain(0.00001).unwrap(); // Account for deiminumus reporting errors
 
 
-    for (_, trades) in all_trades.iter() {
-
+    for (asset, trades) in all_trades.iter() {
+        
         let mut buy_txn_list = build_buy_list(trades, &config.accounting_type); // Filter and sort buys based on accounting type (eg FIFO)
+        
+        
         let mut sale_txn_list = build_sale_list(trades); // Filter and sort sales chronologically
 
         if sale_txn_list.is_empty() {
@@ -119,10 +115,28 @@ pub fn get_sale_events(all_trades: HashMap<String, Vec<Trade>>, config: &Config)
                 }
             }
         }
+
+        // let asset, cost_basis = 
+        let (asset, cost_basis) = calc_cost_basis(&buy_txn_list);
+        cost_bases.insert(asset, cost_basis);
+
     }
-    sale_events
+    (sale_events, cost_bases)
 }
 
+fn calc_cost_basis(buys: &[Trade]) -> (String, f32) {
+    let total_cost = buys.iter().map(|buy| buy.price * buy.remaining.to_f32().unwrap()).sum::<f32>();
+    let mut total_shares = buys.iter().map(|buy| buy.remaining).sum::<Decimal>().to_f32().unwrap();
+    
+    // If dust amount set to NaN
+    if total_shares < 0.00001 {
+        total_shares = std::f32::NAN;
+    }
+    
+    let cost_basis = total_cost / total_shares;
+
+    (buys[0].base_asset.to_owned(), cost_basis)
+}
 
 
 pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
@@ -173,10 +187,13 @@ pub fn get_annual_summary(sales: &[SaleEvent]) -> DataFrame {
         let _series = Series::new(&k.to_string(), v.values().cloned().collect::<Vec<f32>>());
         df.with_column(_series).unwrap();
     }
+
     df
 
-
 }
+
+
+
 
 
 /// Builds a list of buys from the given list of trades, sorted by the specified accounting type.
@@ -196,6 +213,10 @@ pub fn build_buy_list(trades: &[Trade], acct_type: &AccountingType) -> Vec<Trade
         .filter(|trade| trade.txn_type == TxnType::Buy)
         .cloned()
         .collect();
+
+    if buy_list.is_empty() {
+        panic!("ERROR: No buy transactions found");
+    }
 
     match acct_type {
         AccountingType::FIFO => buy_list.sort_by_key(|k| k.trade_time),
@@ -224,6 +245,14 @@ fn build_sale_list(trades: &[Trade]) -> Vec<Trade> {
 
     sale_list.sort_by_key(|k| k.trade_time);
     sale_list
+}
+
+fn serialize_datetime<S>(dt: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = dt.format("%Y-%m-%d %H:%M:%S").to_string();
+    serializer.serialize_str(&s)
 }
 
 
